@@ -1,0 +1,7 @@
+/target
+**/*.rs.bk
+/assets/textures/generated_atlas.png
+/saves
+*.db
+*.db-journal
+*.log

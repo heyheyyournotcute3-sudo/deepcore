@@ -1,0 +1,5 @@
+# Deepcore lint configuration.
+# `unwrap()`/`expect()` on network, file and content-lookup input is banned by review;
+# these thresholds keep the numeric code honest instead.
+too-many-arguments-threshold = 8
+type-complexity-threshold = 250

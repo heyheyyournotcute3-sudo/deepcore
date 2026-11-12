@@ -1,0 +1,25 @@
+[package]
+name = "deepcore_server"
+description = "Deepcore headless authoritative server."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+deepcore_shared = { workspace = true, features = ["server"] }
+bevy = { workspace = true, features = [
+    "default_app",
+    "std",
+    "multi_threaded",
+] }
+bevy_replicon = { workspace = true }
+bevy_replicon_renet = { workspace = true }
+serde = { workspace = true }
+ron = { workspace = true }
+postcard = { workspace = true }
+zstd = { workspace = true }
+rusqlite = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }

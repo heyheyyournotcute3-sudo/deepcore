@@ -1,0 +1,33 @@
+[package]
+name = "deepcore_shared"
+description = "Deepcore shared game rules: voxels, worldgen, movement, inventory, crafting, power, hazards, protocol."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+default = []
+# Enables bevy_replicon integration (replicated components + remote messages).
+net = ["dep:bevy_replicon", "bevy/serialize"]
+# Server-authoritative helpers that only the server needs.
+server = ["net"]
+# Client-only helpers (interpolation, prediction buffers).
+client = ["net"]
+
+[dependencies]
+bevy = { workspace = true, features = [
+    "default_app",
+    "std",
+    "multi_threaded",
+] }
+bevy_replicon = { workspace = true, optional = true }
+serde = { workspace = true }
+ron = { workspace = true }
+postcard = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
