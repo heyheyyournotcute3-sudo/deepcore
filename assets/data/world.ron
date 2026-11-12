@@ -1,0 +1,16 @@
+// Deepcore — world.ron
+//
+// World generation knobs. Changing these changes the world; players sharing a server all
+// receive the same chunks from the server, so only the server's values matter at runtime.
+(
+    surface_y: 480,          // average surface height above bedrock
+    surface_amplitude: 6,    // hills vary by this many blocks around surface_y
+    camp_radius: 28,         // radius of the flat camp at the centre of the map
+    bedrock_y: 0,            // bedrock floor
+    bedrock_thickness: 3,    // unbreakable shell thickness (floor and walls)
+    cave_threshold: 0.62,    // higher = fewer caves
+    cave_scale: 34.0,        // cave noise wavelength in blocks
+    ore_scale: 12.0,         // ore vein noise wavelength in blocks
+    tree_count: 48,          // trees ringing the camp
+    spawn: (512, 486, 512),  // player spawn block
+)

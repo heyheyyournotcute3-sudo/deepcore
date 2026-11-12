@@ -10,7 +10,15 @@
 
 use bevy::prelude::*;
 
+pub mod atlas;
+pub mod balance;
+pub mod content;
+pub mod mesh;
+pub mod mining;
+pub mod movement;
 pub mod protocol;
+pub mod voxel;
+pub mod worldgen;
 
 /// The fixed simulation rate of the server, and the rate the client predicts at.
 pub const SERVER_TICK_HZ: f64 = 30.0;
@@ -23,6 +31,7 @@ impl Plugin for SharedPlugin {
         // Both sides simulate on the same fixed timestep so that shared movement code
         // produces identical results for identical inputs.
         app.insert_resource(Time::<Fixed>::from_hz(SERVER_TICK_HZ));
+        app.add_plugins(content::ContentPlugin);
     }
 }
 

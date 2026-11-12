@@ -1,0 +1,126 @@
+// Deepcore — blocks.ron
+//
+// Every placeable or breakable block in the world.
+//   hardness    seconds to break with a tier-1 tool at speed 1.0
+//   min_tier    lowest tool tier that can break it at all (1..5)
+//   drops       (item_id, count) — resolved against items.ron
+//   color       linear RGB 0..1, the base colour the procedural texture is built from
+//   pattern     Flat | Speckle | Blotch | OreFleck((r,g,b)) | Stratified | Glow | Grain
+//   radiation   Some((radius_blocks, dose_per_second))
+//   machine     Some("machine_id") links a machine block to machines.ron
+//
+// Ids are grouped: terrain, ores, machine blocks, decorative/functional blocks.
+[
+    // ---------------------------------------------------------------- terrain
+    (id: "air", name: "Air", hardness: 0.0, min_tier: 0, drops: [], color: (0.0, 0.0, 0.0), pattern: Flat, kind: Passable, breakable: false),
+    (id: "bedrock", name: "Bedrock", hardness: 999.0, min_tier: 9, drops: [], color: (0.09, 0.09, 0.10), pattern: Blotch, roughness: 1.0, breakable: false),
+    (id: "dirt", name: "Dirt", hardness: 0.5, min_tier: 1, drops: [("dirt", 1)], color: (0.30, 0.22, 0.14), pattern: Speckle, layer_hint: Some(1)),
+    (id: "grass", name: "Grass", hardness: 0.5, min_tier: 1, drops: [("dirt", 1)], color: (0.24, 0.38, 0.16), pattern: Speckle, layer_hint: Some(1)),
+    (id: "gravel", name: "Gravel", hardness: 0.6, min_tier: 1, drops: [("gravel", 1)], color: (0.36, 0.34, 0.32), pattern: Blotch, layer_hint: Some(1)),
+    (id: "clay", name: "Clay", hardness: 0.6, min_tier: 1, drops: [("clay", 1)], color: (0.42, 0.33, 0.27), pattern: Blotch, layer_hint: Some(1)),
+    (id: "sand", name: "Sand", hardness: 0.4, min_tier: 1, drops: [("sand", 1)], color: (0.66, 0.58, 0.40), pattern: Speckle, layer_hint: Some(1)),
+    (id: "stone", name: "Stone", hardness: 1.4, min_tier: 1, drops: [("stone_cobble", 1)], color: (0.42, 0.42, 0.44), pattern: Speckle, layer_hint: Some(2)),
+    (id: "limestone", name: "Limestone", hardness: 1.2, min_tier: 1, drops: [("limestone", 1)], color: (0.66, 0.64, 0.58), pattern: Stratified, layer_hint: Some(2)),
+    (id: "shale", name: "Shale", hardness: 1.6, min_tier: 1, drops: [("stone_cobble", 1)], color: (0.26, 0.27, 0.29), pattern: Stratified, layer_hint: Some(2)),
+    (id: "granite", name: "Granite", hardness: 2.5, min_tier: 2, drops: [("granite_cobble", 1)], color: (0.55, 0.50, 0.48), pattern: Speckle, layer_hint: Some(3)),
+    (id: "basalt", name: "Basalt", hardness: 3.6, min_tier: 3, drops: [("basalt_cobble", 1)], color: (0.20, 0.19, 0.22), pattern: Blotch, layer_hint: Some(4)),
+    (id: "gneiss", name: "Gneiss", hardness: 5.0, min_tier: 4, drops: [("gneiss_cobble", 1)], color: (0.34, 0.31, 0.33), pattern: Stratified, layer_hint: Some(5)),
+    (id: "obsidian", name: "Obsidian", hardness: 6.5, min_tier: 4, drops: [("obsidian_shard", 1)], color: (0.10, 0.09, 0.14), pattern: Glow, roughness: 0.25, layer_hint: Some(5)),
+    (id: "mantle_rock", name: "Mantle Rock", hardness: 9.0, min_tier: 5, drops: [("mantle_fragment", 1)], color: (0.34, 0.12, 0.10), pattern: Glow, emissive: 0.15, layer_hint: Some(6)),
+    (id: "water", name: "Water", hardness: 0.0, min_tier: 0, drops: [], color: (0.10, 0.24, 0.45), pattern: Flat, kind: Passable, roughness: 0.05, breakable: false),
+    (id: "methane", name: "Methane Pocket", hardness: 0.0, min_tier: 0, drops: [], color: (0.20, 0.24, 0.18), pattern: Flat, kind: Passable, breakable: false),
+
+    // ---------------------------------------------------------------- ores (layer 1)
+    (id: "coal_seam", name: "Coal Seam", hardness: 1.2, min_tier: 1, drops: [("coal", 2)], color: (0.12, 0.12, 0.13), pattern: OreFleck((0.05, 0.05, 0.05)), layer_hint: Some(1)),
+    // ---------------------------------------------------------------- ores (layer 2)
+    (id: "malachite", name: "Malachite", hardness: 1.8, min_tier: 1, drops: [("raw_copper", 2)], color: (0.30, 0.42, 0.36), pattern: OreFleck((0.20, 0.85, 0.55)), layer_hint: Some(2)),
+    (id: "cassiterite", name: "Cassiterite", hardness: 2.0, min_tier: 1, drops: [("raw_tin", 2)], color: (0.38, 0.36, 0.34), pattern: OreFleck((0.85, 0.80, 0.70)), layer_hint: Some(2)),
+    (id: "hematite", name: "Hematite", hardness: 2.2, min_tier: 1, drops: [("raw_iron", 2)], color: (0.45, 0.30, 0.26), pattern: OreFleck((0.85, 0.45, 0.30)), layer_hint: Some(2)),
+    // ---------------------------------------------------------------- ores (layer 3)
+    (id: "galena", name: "Galena", hardness: 2.8, min_tier: 2, drops: [("raw_lead", 2)], color: (0.40, 0.41, 0.45), pattern: OreFleck((0.75, 0.78, 0.85)), layer_hint: Some(3)),
+    (id: "sphalerite", name: "Sphalerite", hardness: 2.7, min_tier: 2, drops: [("raw_zinc", 2)], color: (0.34, 0.33, 0.30), pattern: OreFleck((0.90, 0.70, 0.35)), layer_hint: Some(3)),
+    (id: "sulfur_deposit", name: "Sulfur Deposit", hardness: 2.2, min_tier: 2, drops: [("sulfur", 3)], color: (0.52, 0.48, 0.24), pattern: OreFleck((0.95, 0.90, 0.20)), layer_hint: Some(3)),
+    (id: "quartz", name: "Quartz", hardness: 2.9, min_tier: 2, drops: [("quartz", 2)], color: (0.60, 0.60, 0.62), pattern: OreFleck((0.95, 0.95, 1.0)), layer_hint: Some(3)),
+    (id: "bauxite", name: "Bauxite", hardness: 2.6, min_tier: 2, drops: [("raw_bauxite", 2)], color: (0.52, 0.40, 0.32), pattern: OreFleck((0.85, 0.60, 0.45)), layer_hint: Some(3)),
+    (id: "rock_salt", name: "Rock Salt", hardness: 1.8, min_tier: 2, drops: [("salt", 3)], color: (0.70, 0.68, 0.66), pattern: OreFleck((0.98, 0.98, 0.96)), layer_hint: Some(3)),
+    // ---------------------------------------------------------------- ores (layer 4)
+    (id: "pentlandite", name: "Pentlandite", hardness: 3.8, min_tier: 3, drops: [("raw_nickel", 2)], color: (0.34, 0.33, 0.29), pattern: OreFleck((0.80, 0.85, 0.55)), layer_hint: Some(4)),
+    (id: "wolframite", name: "Wolframite", hardness: 4.2, min_tier: 3, drops: [("raw_tungsten", 1)], color: (0.26, 0.24, 0.24), pattern: OreFleck((0.60, 0.55, 0.70)), layer_hint: Some(4)),
+    (id: "chromite", name: "Chromite", hardness: 4.0, min_tier: 3, drops: [("raw_chromium", 2)], color: (0.24, 0.22, 0.25), pattern: OreFleck((0.70, 0.75, 0.80)), layer_hint: Some(4)),
+    (id: "graphite_vein", name: "Graphite Vein", hardness: 3.2, min_tier: 3, drops: [("graphite", 3)], color: (0.14, 0.14, 0.15), pattern: OreFleck((0.30, 0.30, 0.32)), layer_hint: Some(4)),
+    (id: "fluorite", name: "Fluorite", hardness: 3.4, min_tier: 3, drops: [("fluorite", 2)], color: (0.30, 0.38, 0.48), pattern: OreFleck((0.45, 0.95, 0.85)), layer_hint: Some(4)),
+    (id: "zircon", name: "Zircon", hardness: 4.4, min_tier: 3, drops: [("raw_zircon", 1)], color: (0.44, 0.36, 0.30), pattern: OreFleck((0.95, 0.75, 0.55)), layer_hint: Some(4)),
+    (id: "gold_vein", name: "Gold Vein", hardness: 3.6, min_tier: 3, drops: [("raw_gold", 1)], color: (0.40, 0.34, 0.22), pattern: OreFleck((1.0, 0.85, 0.25)), layer_hint: Some(4)),
+    // ---------------------------------------------------------------- ores (layer 5/6)
+    (id: "pitchblende", name: "Pitchblende", hardness: 6.0, min_tier: 4, drops: [("uranium_ore", 1)], color: (0.15, 0.18, 0.12), pattern: OreFleck((0.40, 0.90, 0.30)), emissive: 0.30, radiation: Some((4.0, 0.5)), layer_hint: Some(5)),
+    (id: "monazite", name: "Monazite", hardness: 5.5, min_tier: 4, drops: [("monazite_sand", 2)], color: (0.36, 0.28, 0.24), pattern: OreFleck((0.85, 0.55, 0.35)), radiation: Some((1.5, 0.05)), layer_hint: Some(5)),
+    (id: "core_crystal", name: "Core Crystal", hardness: 8.0, min_tier: 5, drops: [("core_crystal", 1)], color: (0.45, 0.10, 0.55), pattern: Glow, emissive: 0.9, radiation: Some((3.0, 0.2)), layer_hint: Some(6)),
+
+    // ---------------------------------------------------------------- processed building blocks
+    (id: "bricks", name: "Bricks", hardness: 1.6, min_tier: 1, drops: [("bricks", 1)], color: (0.48, 0.26, 0.20), pattern: Stratified),
+    (id: "fire_bricks", name: "Fire Bricks", hardness: 2.4, min_tier: 2, drops: [("fire_brick", 1)], color: (0.58, 0.42, 0.34), pattern: Stratified),
+    (id: "stone_bricks", name: "Stone Bricks", hardness: 1.8, min_tier: 1, drops: [("stone_bricks", 1)], color: (0.44, 0.44, 0.46), pattern: Stratified),
+    (id: "glass", name: "Glass", hardness: 0.4, min_tier: 1, drops: [("glass", 1)], color: (0.75, 0.85, 0.90), pattern: Flat, roughness: 0.05),
+    (id: "steel_block", name: "Steel Block", hardness: 4.0, min_tier: 2, drops: [("steel_block", 1)], color: (0.52, 0.54, 0.57), pattern: Speckle, roughness: 0.4),
+    (id: "stainless_block", name: "Stainless Block", hardness: 5.0, min_tier: 3, drops: [("stainless_block", 1)], color: (0.60, 0.62, 0.66), pattern: Speckle, roughness: 0.3),
+    (id: "lead_block", name: "Lead Block", hardness: 2.0, min_tier: 1, drops: [("lead_block", 1)], color: (0.35, 0.36, 0.40), pattern: Speckle, roughness: 0.5),
+    (id: "graphite_block", name: "Graphite Block", hardness: 2.0, min_tier: 2, drops: [("graphite_block", 1)], color: (0.12, 0.12, 0.13), pattern: Speckle),
+    (id: "shielding_plate", name: "Dense Shielding Plate", hardness: 5.0, min_tier: 3, drops: [("shielding_plate", 1)], color: (0.28, 0.30, 0.34), pattern: Speckle, roughness: 0.4),
+    (id: "concrete", name: "Concrete", hardness: 2.2, min_tier: 1, drops: [("concrete", 1)], color: (0.52, 0.52, 0.50), pattern: Speckle),
+    (id: "timber_support", name: "Timber Support", hardness: 1.0, min_tier: 1, drops: [("timber_support", 1)], color: (0.40, 0.29, 0.18), pattern: Grain),
+    (id: "steel_support", name: "Steel Support", hardness: 3.0, min_tier: 2, drops: [("steel_support", 1)], color: (0.46, 0.48, 0.52), pattern: Speckle, roughness: 0.4),
+    (id: "ladder", name: "Ladder", hardness: 0.6, min_tier: 1, drops: [("ladder", 1)], color: (0.45, 0.33, 0.20), pattern: Grain, kind: Passable),
+    (id: "oak_log", name: "Oak Log", hardness: 0.9, min_tier: 1, drops: [("timber", 2)], color: (0.33, 0.24, 0.15), pattern: Grain, layer_hint: Some(1)),
+    (id: "oak_leaves", name: "Leaves", hardness: 0.2, min_tier: 1, drops: [("timber", 1)], color: (0.20, 0.34, 0.16), pattern: Blotch, layer_hint: Some(1)),
+    (id: "oil_lamp", name: "Oil Lamp", hardness: 0.4, min_tier: 1, drops: [("oil_lamp", 1)], color: (0.55, 0.42, 0.20), pattern: Flat, emissive: 0.8, kind: Passable),
+    (id: "electric_lamp", name: "Electric Lamp", hardness: 0.4, min_tier: 1, drops: [("electric_lamp", 1)], color: (0.85, 0.88, 0.80), pattern: Flat, emissive: 1.0, kind: Passable),
+    (id: "copper_cable_block", name: "Copper Cable", hardness: 0.3, min_tier: 1, drops: [("copper_cable", 1)], color: (0.62, 0.32, 0.18), pattern: Flat, kind: Passable),
+    (id: "copper_pipe_block", name: "Copper Pipe", hardness: 0.6, min_tier: 1, drops: [("copper_pipe", 1)], color: (0.60, 0.34, 0.20), pattern: Flat, kind: Passable),
+    (id: "conveyor", name: "Conveyor", hardness: 0.8, min_tier: 1, drops: [("conveyor", 1)], color: (0.24, 0.24, 0.26), pattern: Speckle, kind: Passable),
+    (id: "rail", name: "Rail", hardness: 0.8, min_tier: 1, drops: [("rail", 1)], color: (0.42, 0.42, 0.44), pattern: Speckle, kind: Passable),
+    (id: "storage_crate", name: "Storage Crate", hardness: 1.0, min_tier: 1, drops: [("storage_crate", 1)], color: (0.42, 0.31, 0.19), pattern: Grain, machine: Some("storage_crate")),
+    (id: "item_pipe", name: "Item Pipe", hardness: 0.5, min_tier: 1, drops: [("item_pipe", 1)], color: (0.30, 0.32, 0.35), pattern: Flat, kind: Passable),
+    (id: "cooling_pool_block", name: "Cooling Pool", hardness: 2.0, min_tier: 2, drops: [("cooling_pool", 1)], color: (0.18, 0.34, 0.48), pattern: Flat, machine: Some("cooling_pool_block")),
+    (id: "waste_vault_block", name: "Waste Vault Liner", hardness: 5.5, min_tier: 3, drops: [("waste_vault", 1)], color: (0.22, 0.24, 0.22), pattern: Speckle, roughness: 0.6, machine: Some("waste_vault_block")),
+
+    // ---------------------------------------------------------------- machine blocks
+    (id: "workbench", name: "Workbench", hardness: 1.2, min_tier: 1, drops: [("workbench", 1)], color: (0.46, 0.34, 0.21), pattern: Grain, machine: Some("workbench")),
+    (id: "brick_kiln", name: "Brick Kiln", hardness: 1.8, min_tier: 1, drops: [("brick_kiln", 1)], color: (0.50, 0.28, 0.22), pattern: Stratified, machine: Some("brick_kiln")),
+    (id: "stone_furnace", name: "Stone Furnace", hardness: 2.0, min_tier: 1, drops: [("stone_furnace", 1)], color: (0.40, 0.40, 0.42), pattern: Speckle, emissive: 0.0, machine: Some("stone_furnace")),
+    (id: "anvil", name: "Anvil", hardness: 2.5, min_tier: 2, drops: [("anvil", 1)], color: (0.30, 0.31, 0.34), pattern: Speckle, machine: Some("anvil")),
+    (id: "blast_furnace", name: "Blast Furnace", hardness: 3.0, min_tier: 2, drops: [("blast_furnace", 1)], color: (0.34, 0.30, 0.28), pattern: Stratified, machine: Some("blast_furnace")),
+    (id: "research_desk", name: "Research Desk", hardness: 1.2, min_tier: 1, drops: [("research_desk", 1)], color: (0.38, 0.32, 0.24), pattern: Grain, machine: Some("research_desk")),
+    (id: "hand_pump", name: "Hand Pump", hardness: 1.6, min_tier: 1, drops: [("hand_pump", 1)], color: (0.44, 0.38, 0.30), pattern: Speckle, machine: Some("hand_pump")),
+    (id: "steam_boiler", name: "Steam Boiler", hardness: 2.6, min_tier: 2, drops: [("steam_boiler", 1)], color: (0.40, 0.38, 0.36), pattern: Speckle, machine: Some("steam_boiler")),
+    (id: "steam_engine", name: "Steam Engine", hardness: 2.8, min_tier: 2, drops: [("steam_engine", 1)], color: (0.36, 0.36, 0.40), pattern: Speckle, machine: Some("steam_engine")),
+    (id: "crusher", name: "Crusher", hardness: 2.8, min_tier: 2, drops: [("crusher", 1)], color: (0.30, 0.30, 0.33), pattern: Speckle, machine: Some("crusher")),
+    (id: "ore_washer", name: "Ore Washer", hardness: 2.4, min_tier: 2, drops: [("ore_washer", 1)], color: (0.28, 0.34, 0.36), pattern: Speckle, machine: Some("ore_washer")),
+    (id: "mine_lift", name: "Mine Lift", hardness: 2.4, min_tier: 2, drops: [("mine_lift", 1)], color: (0.34, 0.34, 0.36), pattern: Speckle, machine: Some("mine_lift")),
+    (id: "steam_turbine", name: "Steam Turbine", hardness: 3.0, min_tier: 2, drops: [("steam_turbine", 1)], color: (0.42, 0.44, 0.48), pattern: Speckle, machine: Some("steam_turbine")),
+    (id: "generator", name: "Generator", hardness: 2.8, min_tier: 2, drops: [("generator", 1)], color: (0.34, 0.36, 0.42), pattern: Speckle, machine: Some("generator")),
+    (id: "battery_bank", name: "Battery Bank", hardness: 2.6, min_tier: 2, drops: [("battery_bank", 1)], color: (0.28, 0.32, 0.30), pattern: Speckle, machine: Some("battery_bank")),
+    (id: "arc_furnace", name: "Arc Furnace", hardness: 3.2, min_tier: 3, drops: [("arc_furnace", 1)], color: (0.30, 0.30, 0.36), pattern: Speckle, emissive: 0.1, machine: Some("arc_furnace")),
+    (id: "electrolysis_cell", name: "Electrolysis Cell", hardness: 2.8, min_tier: 3, drops: [("electrolysis_cell", 1)], color: (0.30, 0.40, 0.42), pattern: Speckle, machine: Some("electrolysis_cell")),
+    (id: "circuit_assembler", name: "Circuit Assembler", hardness: 2.4, min_tier: 3, drops: [("circuit_assembler", 1)], color: (0.28, 0.32, 0.36), pattern: Speckle, machine: Some("circuit_assembler")),
+    (id: "charging_station", name: "Charging Station", hardness: 2.4, min_tier: 3, drops: [("charging_station", 1)], color: (0.32, 0.36, 0.34), pattern: Speckle, machine: Some("charging_station")),
+    (id: "vent_fan", name: "Vent Fan", hardness: 2.2, min_tier: 2, drops: [("vent_fan", 1)], color: (0.36, 0.38, 0.40), pattern: Speckle, machine: Some("vent_fan")),
+    (id: "electric_pump", name: "Electric Pump", hardness: 2.2, min_tier: 2, drops: [("electric_pump", 1)], color: (0.30, 0.38, 0.42), pattern: Speckle, machine: Some("electric_pump")),
+    (id: "ore_scanner", name: "Ore Scanner", hardness: 2.2, min_tier: 2, drops: [("ore_scanner", 1)], color: (0.34, 0.34, 0.42), pattern: Speckle, emissive: 0.2, machine: Some("ore_scanner")),
+    (id: "chemical_plant", name: "Chemical Plant", hardness: 3.4, min_tier: 3, drops: [("chemical_plant", 1)], color: (0.34, 0.40, 0.32), pattern: Speckle, machine: Some("chemical_plant")),
+    (id: "alloy_furnace", name: "Alloy Furnace", hardness: 4.0, min_tier: 3, drops: [("alloy_furnace", 1)], color: (0.38, 0.34, 0.30), pattern: Speckle, machine: Some("alloy_furnace")),
+    (id: "machine_shop", name: "Machine Shop", hardness: 3.0, min_tier: 3, drops: [("machine_shop", 1)], color: (0.36, 0.38, 0.42), pattern: Speckle, machine: Some("machine_shop")),
+    (id: "rare_earth_separator", name: "Rare-Earth Separator", hardness: 3.6, min_tier: 3, drops: [("rare_earth_separator", 1)], color: (0.40, 0.32, 0.38), pattern: Speckle, machine: Some("rare_earth_separator")),
+    (id: "decon_shower", name: "Decon Shower", hardness: 2.0, min_tier: 2, drops: [("decon_shower", 1)], color: (0.42, 0.46, 0.44), pattern: Speckle, machine: Some("decon_shower")),
+    (id: "leaching_tank", name: "Leaching Tank", hardness: 3.2, min_tier: 3, drops: [("leaching_tank", 1)], color: (0.30, 0.38, 0.28), pattern: Speckle, radiation: Some((1.0, 0.05)), machine: Some("leaching_tank")),
+    (id: "precipitator", name: "Precipitator", hardness: 3.2, min_tier: 3, drops: [("precipitator", 1)], color: (0.34, 0.38, 0.34), pattern: Speckle, radiation: Some((1.0, 0.05)), machine: Some("precipitator")),
+    (id: "conversion_plant", name: "Conversion Plant", hardness: 3.6, min_tier: 4, drops: [("conversion_plant", 1)], color: (0.32, 0.36, 0.32), pattern: Speckle, radiation: Some((1.0, 0.08)), machine: Some("conversion_plant")),
+    (id: "centrifuge", name: "Centrifuge", hardness: 3.6, min_tier: 4, drops: [("centrifuge", 1)], color: (0.36, 0.38, 0.44), pattern: Speckle, machine: Some("centrifuge")),
+    (id: "fuel_fabricator", name: "Fuel Fabricator", hardness: 3.4, min_tier: 4, drops: [("fuel_fabricator", 1)], color: (0.34, 0.36, 0.38), pattern: Speckle, radiation: Some((1.0, 0.05)), machine: Some("fuel_fabricator")),
+    (id: "reactor_casing", name: "Reactor Casing", hardness: 5.0, min_tier: 3, drops: [("reactor_casing", 1)], color: (0.44, 0.46, 0.50), pattern: Speckle, roughness: 0.4, machine: Some("reactor_casing")),
+    (id: "reactor_core", name: "Reactor Core", hardness: 5.0, min_tier: 3, drops: [("reactor_core", 1)], color: (0.30, 0.34, 0.40), pattern: Glow, emissive: 0.2, machine: Some("reactor_core")),
+    (id: "reactor_console", name: "Reactor Console", hardness: 2.4, min_tier: 3, drops: [("reactor_console", 1)], color: (0.26, 0.30, 0.36), pattern: Speckle, emissive: 0.15, machine: Some("reactor_console")),
+    (id: "scram_panel", name: "Scram Panel", hardness: 2.0, min_tier: 3, drops: [("scram_panel", 1)], color: (0.46, 0.18, 0.16), pattern: Flat, machine: Some("scram_panel")),
+    (id: "coolant_pump", name: "Coolant Pump", hardness: 2.6, min_tier: 3, drops: [("coolant_pump", 1)], color: (0.30, 0.40, 0.44), pattern: Speckle, machine: Some("coolant_pump")),
+    (id: "heat_exchanger", name: "Heat Exchanger", hardness: 2.8, min_tier: 3, drops: [("heat_exchanger", 1)], color: (0.40, 0.36, 0.34), pattern: Speckle, machine: Some("heat_exchanger")),
+    (id: "nuclear_drill_mount", name: "Nuclear Drill Mount", hardness: 4.0, min_tier: 3, drops: [("nuclear_drill_mount", 1)], color: (0.34, 0.36, 0.40), pattern: Speckle, machine: Some("nuclear_drill_mount")),
+]

@@ -1,0 +1,120 @@
+// Deepcore — machines.ron
+//
+// Machine definitions. A machine block in blocks.ron points here with `machine: Some("id")`.
+//   size         footprint (x, y, z) in blocks
+//   energy       Fuel { slots } | Steam { per_second } | Electric { kw } | Shaft { per_second } | None
+//   input_slots  number of input slots in the machine UI
+//   output_slots number of output slots
+//   build_cost   (item_id, count) paid when the player places the kit
+//   tech         tech node that must be unlocked first
+//   cascade      Some((min, max)) for centrifuge cascades
+//   reactor_part role inside the 5x5x5 reactor ("casing", "moderator", "console", ...)
+[
+    // ---------------------------------------------------------------- Era 0
+    (id: "workbench", name: "Workbench", size: (1, 1, 1), energy: None, input_slots: 0, output_slots: 0,
+     build_cost: [("timber", 8)], tech: None, description: "Hand crafting station for Era 0 parts."),
+    (id: "storage_crate", name: "Storage Crate", size: (1, 1, 1), energy: None, input_slots: 0, output_slots: 27,
+     build_cost: [("timber", 10)], tech: None, description: "27 slots of shared storage."),
+    (id: "research_desk", name: "Research Desk", size: (1, 1, 1), energy: None, input_slots: 6, output_slots: 0,
+     build_cost: [("timber", 12), ("stone_cobble", 6)], tech: None, description: "Deliver materials to unlock the tech tree."),
+
+    // ---------------------------------------------------------------- Era 1
+    (id: "brick_kiln", name: "Brick Kiln", size: (1, 2, 1), energy: Fuel(slots: 1), input_slots: 2, output_slots: 2,
+     build_cost: [("clay", 20), ("stone_cobble", 10)], tech: Some("smelting"), description: "Fires clay into bricks and fire bricks."),
+    (id: "stone_furnace", name: "Stone Furnace", size: (1, 2, 1), energy: Fuel(slots: 1), input_slots: 2, output_slots: 2,
+     build_cost: [("stone_cobble", 24), ("clay", 8)], tech: Some("smelting"), description: "Smelts ore into ingots and makes bronze."),
+    (id: "anvil", name: "Anvil", size: (1, 1, 1), energy: None, input_slots: 2, output_slots: 2,
+     build_cost: [("iron_ingot", 8)], tech: Some("smithing"), description: "Hammers ingots into plates, rods and gears."),
+    (id: "blast_furnace", name: "Blast Furnace", size: (2, 3, 2), energy: Fuel(slots: 1), input_slots: 3, output_slots: 2,
+     build_cost: [("fire_brick", 40), ("iron_plate", 12)], tech: Some("steelmaking"), description: "Iron + coal + limestone flux into steel."),
+
+    // ---------------------------------------------------------------- Era 2
+    (id: "hand_pump", name: "Hand Pump", size: (1, 1, 1), energy: None, input_slots: 0, output_slots: 0,
+     build_cost: [("bronze_ingot", 6), ("copper_pipe", 4)], tech: Some("steam_power"), description: "Supplies water to a boiler."),
+    (id: "steam_boiler", name: "Steam Boiler", size: (1, 2, 1), energy: Fuel(slots: 1), input_slots: 1, output_slots: 0,
+     build_cost: [("steel_plate", 10), ("copper_pipe", 6), ("bricks", 12)], tech: Some("steam_power"), description: "Burns coal into steam for the pipe network."),
+    (id: "steam_engine", name: "Steam Engine", size: (1, 2, 2), energy: Steam(per_second: 4.0), input_slots: 0, output_slots: 0,
+     build_cost: [("steel_ingot", 16), ("bronze_gear", 4), ("copper_pipe", 6)], tech: Some("steam_power"), description: "Turns steam into shaft power for nearby machines."),
+    (id: "crusher", name: "Crusher", size: (1, 2, 1), energy: Shaft(per_second: 3.0), input_slots: 1, output_slots: 2,
+     build_cost: [("steel_ingot", 12), ("iron_gear", 4), ("stone_bricks", 10)], tech: Some("ore_processing"), description: "Crushes ore: 1.5x ingots per ore."),
+    (id: "ore_washer", name: "Ore Washer", size: (1, 2, 1), energy: Shaft(per_second: 2.0), input_slots: 2, output_slots: 2,
+     build_cost: [("steel_plate", 8), ("copper_pipe", 4), ("bricks", 8)], tech: Some("ore_processing"), description: "Washes crushed ore: 2x ingots per ore."),
+    (id: "mine_lift", name: "Mine Lift", size: (1, 2, 1), energy: Shaft(per_second: 2.0), input_slots: 0, output_slots: 0,
+     build_cost: [("steel_ingot", 20), ("copper_cable", 8)], tech: Some("logistics"), description: "Carries the player and a cart between levels."),
+    (id: "item_pipe", name: "Item Pipe", size: (1, 1, 1), energy: None, input_slots: 0, output_slots: 0,
+     build_cost: [("steel_plate", 2)], tech: Some("logistics"), description: "Moves items between adjacent machines."),
+
+    // ---------------------------------------------------------------- Era 3
+    (id: "steam_turbine", name: "Steam Turbine", size: (2, 2, 2), energy: Steam(per_second: 10.0), input_slots: 0, output_slots: 0,
+     build_cost: [("steel_plate", 24), ("turbine_blade", 4), ("copper_cable", 10)], tech: Some("electricity"), description: "Turns steam into rotation for a generator."),
+    (id: "generator", name: "Generator", size: (2, 2, 2), energy: None, input_slots: 0, output_slots: 0,
+     build_cost: [("steel_plate", 20), ("copper_cable", 16), ("iron_gear", 6)], tech: Some("electricity"), description: "Rotation into kilowatts on the cable network."),
+    (id: "battery_bank", name: "Battery Bank", size: (1, 2, 1), energy: None, input_slots: 0, output_slots: 0,
+     build_cost: [("battery_pack", 6), ("lead_plate", 8), ("copper_cable", 6)], tech: Some("electricity"), description: "Stores surplus kW and covers deficits."),
+    (id: "arc_furnace", name: "Arc Furnace", size: (2, 2, 2), energy: Electric(kw: 45.0), input_slots: 2, output_slots: 2,
+     build_cost: [("steel_plate", 16), ("graphite_block", 4), ("circuit_mk1", 2)], tech: Some("electric_smelting"), description: "Fast electric smelting and silicon from quartz."),
+    (id: "electrolysis_cell", name: "Electrolysis Cell", size: (2, 2, 1), energy: Electric(kw: 30.0), input_slots: 2, output_slots: 3,
+     build_cost: [("steel_plate", 12), ("copper_plate", 6), ("glass", 8)], tech: Some("electric_smelting"), description: "Bauxite to aluminium, salt to chlorine and lye."),
+    (id: "circuit_assembler", name: "Circuit Assembler", size: (1, 2, 1), energy: Electric(kw: 20.0), input_slots: 3, output_slots: 2,
+     build_cost: [("steel_plate", 8), ("copper_cable", 10), ("glass", 4)], tech: Some("electronics"), description: "Silicon and copper into circuits."),
+    (id: "charging_station", name: "Charging Station", size: (1, 1, 1), energy: Electric(kw: 15.0), input_slots: 1, output_slots: 1,
+     build_cost: [("steel_plate", 6), ("copper_cable", 8), ("battery_pack", 2)], tech: Some("electronics"), description: "Recharges battery tools."),
+    (id: "vent_fan", name: "Vent Fan", size: (1, 1, 1), energy: Electric(kw: 10.0), input_slots: 0, output_slots: 0,
+     build_cost: [("steel_plate", 6), ("motor", 1)], tech: Some("mine_safety"), description: "Clears methane from nearby tunnels."),
+    (id: "electric_pump", name: "Electric Pump", size: (1, 1, 1), energy: Electric(kw: 12.0), input_slots: 0, output_slots: 0,
+     build_cost: [("steel_plate", 6), ("motor", 1), ("copper_pipe", 4)], tech: Some("mine_safety"), description: "Drains flooded tunnels."),
+    (id: "ore_scanner", name: "Ore Scanner", size: (1, 1, 1), energy: Electric(kw: 8.0), input_slots: 0, output_slots: 0,
+     build_cost: [("steel_plate", 8), ("circuit_mk1", 4), ("quartz", 6)], tech: Some("mine_safety"), description: "Reveals ore within 16 blocks."),
+
+    // ---------------------------------------------------------------- Era 4
+    (id: "chemical_plant", name: "Chemical Plant", size: (2, 2, 2), energy: Electric(kw: 60.0), input_slots: 3, output_slots: 3,
+     build_cost: [("stainless_plate", 12), ("glass", 10), ("circuit_mk1", 4)], tech: Some("chemistry"), description: "Sulfuric acid and fluorine compounds."),
+    (id: "alloy_furnace", name: "Alloy Furnace", size: (2, 2, 2), energy: Electric(kw: 80.0), input_slots: 3, output_slots: 2,
+     build_cost: [("steel_plate", 20), ("fire_brick", 16), ("circuit_mk2", 2)], tech: Some("advanced_alloys"), description: "Stainless steel and tungsten carbide."),
+    (id: "machine_shop", name: "Machine Shop", size: (2, 2, 2), energy: Electric(kw: 50.0), input_slots: 3, output_slots: 2,
+     build_cost: [("steel_plate", 16), ("bearing", 4), ("circuit_mk2", 2)], tech: Some("advanced_alloys"), description: "Precision parts: bearings, blades, rotors."),
+    (id: "rare_earth_separator", name: "Rare-Earth Separator", size: (2, 2, 2), energy: Electric(kw: 70.0), input_slots: 2, output_slots: 3,
+     build_cost: [("stainless_plate", 10), ("circuit_mk2", 4), ("centrifuge_rotor", 2)], tech: Some("rare_earths"), description: "Monazite into rare-earth magnets."),
+    (id: "decon_shower", name: "Decon Shower", size: (1, 2, 1), energy: Electric(kw: 10.0), input_slots: 0, output_slots: 0,
+     build_cost: [("stainless_plate", 6), ("copper_pipe", 6), ("glass", 4)], tech: Some("hazard_gear"), description: "Clears accumulated radiation dose."),
+
+    // ---------------------------------------------------------------- Era 5: nuclear
+    (id: "leaching_tank", name: "Leaching Tank", size: (2, 2, 2), energy: Electric(kw: 40.0), input_slots: 3, output_slots: 2,
+     build_cost: [("stainless_plate", 12), ("lead_plate", 8), ("circuit_mk2", 2)], tech: Some("uranium_milling"), description: "Crushed uranium + acid into uranium solution."),
+    (id: "precipitator", name: "Precipitator", size: (2, 2, 2), energy: Electric(kw: 35.0), input_slots: 2, output_slots: 2,
+     build_cost: [("stainless_plate", 10), ("copper_pipe", 8), ("circuit_mk2", 2)], tech: Some("uranium_milling"), description: "Uranium solution + lye into yellowcake."),
+    (id: "conversion_plant", name: "Conversion Plant", size: (2, 2, 2), energy: Electric(kw: 60.0), input_slots: 2, output_slots: 2,
+     build_cost: [("stainless_plate", 16), ("lead_plate", 10), ("circuit_mk2", 4)], tech: Some("conversion"), description: "Yellowcake + fluorine into UF6 canisters."),
+    (id: "centrifuge", name: "Centrifuge", size: (1, 3, 1), energy: Electric(kw: 150.0), input_slots: 1, output_slots: 2,
+     build_cost: [("centrifuge_rotor", 2), ("rare_earth_magnet", 4), ("circuit_mk2", 2)], tech: Some("enrichment"),
+     cascade: Some((min: 4, max: 16)), description: "Link 4-16 in a line to enrich UF6."),
+    (id: "fuel_fabricator", name: "Fuel Fabricator", size: (2, 2, 1), energy: Electric(kw: 50.0), input_slots: 3, output_slots: 2,
+     build_cost: [("stainless_plate", 12), ("lead_plate", 6), ("circuit_mk2", 3)], tech: Some("fuel_fabrication"), description: "Enriched canisters into fuel rods and core cells."),
+    (id: "reactor_casing", name: "Reactor Casing", size: (1, 1, 1), energy: None, input_slots: 0, output_slots: 0,
+     build_cost: [("stainless_block", 4), ("lead_block", 2)], tech: Some("reactor_engineering"), reactor_part: Some("casing"),
+     description: "One of the 98 casing blocks of a 5x5x5 reactor shell."),
+    (id: "reactor_core", name: "Reactor Core Block", size: (1, 1, 1), energy: None, input_slots: 0, output_slots: 0,
+     build_cost: [("stainless_block", 2), ("graphite_block", 4)], tech: Some("reactor_engineering"), reactor_part: Some("core"),
+     description: "Graphite moderator inside the reactor shell."),
+    (id: "reactor_console", name: "Reactor Console", size: (1, 1, 1), energy: Electric(kw: 5.0), input_slots: 2, output_slots: 0,
+     build_cost: [("stainless_plate", 6), ("circuit_mk2", 4), ("glass", 4)], tech: Some("reactor_engineering"), reactor_part: Some("console"),
+     description: "Run the reactor: insert or withdraw control rods."),
+    (id: "scram_panel", name: "Scram Panel", size: (1, 1, 1), energy: None, input_slots: 0, output_slots: 0,
+     build_cost: [("stainless_plate", 4), ("circuit_mk2", 2), ("control_rod", 1)], tech: Some("reactor_engineering"), reactor_part: Some("scram"),
+     description: "Automatically scrams the reactor above the temperature limit."),
+    (id: "coolant_pump", name: "Coolant Pump", size: (1, 1, 1), energy: Electric(kw: 25.0), input_slots: 0, output_slots: 0,
+     build_cost: [("stainless_plate", 6), ("motor", 2), ("copper_pipe", 6)], tech: Some("reactor_engineering"), reactor_part: Some("coolant"),
+     description: "Feeds coolant through the reactor core."),
+    (id: "heat_exchanger", name: "Heat Exchanger", size: (2, 1, 1), energy: None, input_slots: 0, output_slots: 0,
+     build_cost: [("stainless_plate", 8), ("copper_pipe", 10), ("turbine_blade", 2)], tech: Some("reactor_engineering"), reactor_part: Some("exchanger"),
+     description: "Reactor heat into steam for the turbines."),
+    (id: "cooling_pool_block", name: "Cooling Pool", size: (1, 1, 1), energy: None, input_slots: 2, output_slots: 2,
+     build_cost: [("stainless_plate", 4), ("lead_plate", 4), ("glass", 4)], tech: Some("waste_handling"), reactor_part: Some("pool"),
+     description: "Cools spent fuel and core cells before they are vaulted."),
+    (id: "waste_vault_block", name: "Waste Vault", size: (1, 1, 1), energy: None, input_slots: 2, output_slots: 2,
+     build_cost: [("lead_block", 8), ("concrete", 12)], tech: Some("waste_handling"), reactor_part: Some("vault"),
+     description: "Seals cooled radioactive waste so it stops emitting."),
+    (id: "nuclear_drill_mount", name: "Nuclear Drill Mount", size: (1, 2, 1), energy: Electric(kw: 40.0), input_slots: 2, output_slots: 2,
+     build_cost: [("stainless_plate", 10), ("motor", 2), ("lead_plate", 4)], tech: Some("nuclear_drill"),
+     description: "Stores a nuclear drill and returns spent core cells."),
+]

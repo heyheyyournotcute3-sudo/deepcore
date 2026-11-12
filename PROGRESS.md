@@ -32,7 +32,7 @@ VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json cargo run -p deepco
 | Milestone | State |
 |---|---|
 | M0 Workspace and skeleton | **done** |
-| M1 Voxel world | not started |
+| M1 Voxel world | **done** |
 | M2 Multiplayer foundation | not started |
 | M3 Content, inventory, crafting (Era 0) | not started |
 | M4 Machines, research, Era 1 | not started |
@@ -42,6 +42,59 @@ VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json cargo run -p deepco
 | M8 Era 5: nuclear | not started |
 | M9 Persistence and polish | not started |
 | M10 Lobby, accounts, server browser | not started |
+
+## M1 — Voxel world (done)
+
+**Built**
+- `shared::voxel`: `BlockPos`/`ChunkPos`/`LocalPos` newtypes with index maths, plus
+  palette-compressed `Chunk` (Solid / 4-bit / 8-bit / 16-bit storage, grown automatically) and
+  a sparse `VoxelWorld` resource. Unit tests cover index round-trips, palette growth past 256
+  entries, postcard round-trips and world bounds.
+- `shared::content`: the RON content model, registries with string→numeric ids, a validator
+  that fails fast (unknown references, recipes with no machine, missing tech parents, tech
+  cycles, layer gaps/overlaps, ores with no use, duplicate ids, bad numbers) and a stable
+  `content_hash()` for the M2 handshake. Content is embedded with `include_str!`, so a fresh
+  clone needs no asset paths.
+- `assets/data/`: 101 blocks, 178 items, 153 recipes, 43 machines, 22 tech nodes, 6 layers and
+  the world-generation knobs — the complete content set from the brief (every ore, structure
+  and tool from Sections 4 and 5, all six Eras, the whole nuclear chain).
+- `shared::worldgen`: deterministic splitmix64 hashing, value-noise/fBm, layers, surface with a
+  flat camp, caves, wobbly-sphere ore veins, water/methane pockets, tree ring and the
+  unbreakable bedrock shell. Tests prove determinism across instances, across generation order,
+  and that a different seed gives a different world.
+- `shared::movement`: AABB-vs-voxel controller with per-axis resolution and sub-stepping,
+  gravity, jump, sprint, crouch, ladders, water, and input sanitising for untrusted client
+  data. 13 tests, including "identical inputs produce identical positions" and "the player
+  never ends up inside rock".
+- `shared::mining`: the break-time formula (`hardness / (speed × power)`), tick rounding, tool
+  tiers, an Amanatides–Woo voxel raycast with exact face normals, and 3×3 face targeting for
+  area tools.
+- `shared::mesh`: greedy meshing with cross-chunk face culling, tested (solid chunk → 6 quads).
+- `shared::atlas`: procedural 256×256 texture atlas from `blocks.ron` (speckle, blotch, ore
+  flecks, strata, glow, grain), plus a dependency-free PNG encoder.
+- `shared::balance` + `cargo run -p deepcore_shared --bin balance_report`: expands the tech tree
+  and machine costs through the recipe graph and prints raw ore per Era (Era 1 ≈ 226 raw items,
+  Era 5 ≈ 1177), with a recursion guard for cyclic recipes.
+- Client: chunk streaming around the player, async greedy meshing on `AsyncComputeTaskPool`,
+  a `StandardMaterial` extension (`assets/shaders/voxel.wesl`) that tiles the atlas per block
+  across merged quads, first-person controls on the shared movement code, mining with the
+  server-side rules, block placing, target outline, depth meter, crosshair that turns red with
+  "Too hard — needs Tier N", and an F3 overlay.
+- `crates/shared/tests/progression_m1.rs`: the M1 acceptance test — generates the real world,
+  digs a shaft with the steel pickaxe, asserts it is stopped by granite in the Granite Depths
+  (depth 64..160) and that the hardened pickaxe gets through; plus a bedrock-is-unbreakable test
+  and a check that every layer's base rock requires its stated tier.
+
+**Deferred**
+- No networking yet (M2). The client generates its own chunks; M2 replaces the source.
+- No inventory, hotbar contents or crafting UI (M3); the held tool is a resource placeholder.
+- No audio, no particles, no persistence.
+
+**Known issues**
+- On the software rasteriser used in this sandbox (`llvmpipe`) the first frames are slow while
+  shaders compile and chunks stream; on real hardware the meshing budget is 8 chunks/frame.
+- `FogFalloff` distance is fixed at startup from the default view distance; it will follow the
+  settings value once settings exist (M9).
 
 ## M0 — Workspace and skeleton (done)
 
