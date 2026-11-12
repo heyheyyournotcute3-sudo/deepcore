@@ -1,17 +1,16 @@
-//! Local mining and placing (M1 single-process scope).
+//! Mining and placing, client side.
 //!
-//! In M2 these become intents sent to the server. The *rules* already live in
-//! `deepcore_shared::mining`; this module only drives the timer, applies the result to the
-//! local world and requests re-meshes.
+//! The client predicts the crack animation with the shared break-time formula and sends
+//! intents; the server owns the real timer, the validation and the block change.
 
 use bevy::prelude::*;
 
 use deepcore_shared::content::ContentRegistry;
-use deepcore_shared::mining::{MineBlocked, MineCheck, ToolProfile, area_blocks, check_mine};
+use deepcore_shared::mining::{MineBlocked, MineCheck, ToolProfile, check_mine};
+use deepcore_shared::protocol::{PlaceBlock, StartMining, StopMining, pack_pos};
 use deepcore_shared::voxel::world::VoxelWorld;
 
 use crate::input::{LocalPlayer, Targeting};
-use crate::render::{DirtyChunks, mark_dirty};
 
 /// The block the player is currently breaking, and how far along they are.
 #[derive(Resource, Default)]
@@ -44,6 +43,9 @@ impl Default for HeldItem {
 }
 
 /// Advances mining while the left mouse button is held.
+///
+/// The client predicts the crack animation locally with the shared break-time formula, and
+/// sends `StartMining`/`StopMining`; the server owns the real timer and the block change.
 pub fn mining_system(
     time: Res<Time>,
     buttons: Res<ButtonInput<MouseButton>>,
@@ -52,27 +54,38 @@ pub fn mining_system(
     targeting: Res<Targeting>,
     held: Res<HeldItem>,
     mut progress: ResMut<MiningProgress>,
-    mut world: ResMut<VoxelWorld>,
-    mut dirty: ResMut<DirtyChunks>,
+    world: Res<VoxelWorld>,
+    mut start: MessageWriter<StartMining>,
+    mut stop: MessageWriter<StopMining>,
 ) {
     let profile = ToolProfile::for_item(&registry, held.tool, held.charged);
 
     if !buttons.pressed(MouseButton::Left) {
+        if progress.block.is_some() {
+            stop.write(StopMining);
+        }
         progress.block = None;
         progress.elapsed = 0.0;
         return;
     }
 
     let Some(target) = targeting.target else {
+        if progress.block.is_some() {
+            stop.write(StopMining);
+        }
         progress.block = None;
         progress.elapsed = 0.0;
         return;
     };
 
-    // Reset the timer when the player looks at a different block.
+    // Reset the timer and tell the server when the player looks at a different block.
     if progress.block != Some(target.block) {
+        if progress.block.is_some() {
+            stop.write(StopMining);
+        }
         progress.block = Some(target.block);
         progress.elapsed = 0.0;
+        start.write(StartMining { block: pack_pos(target.block), face: target.face() });
     }
 
     let check = check_mine(&registry, world.block(target.block), &profile);
@@ -89,43 +102,22 @@ pub fn mining_system(
         }
     }
 
+    // Predicted progress only: the block disappears when the server's `BlockChanged` arrives.
     progress.elapsed += time.delta_secs();
-    if progress.elapsed < progress.required {
-        return;
-    }
-
-    // Break it. Area tools break the whole face in one action.
-    let blocks = area_blocks(target.block, target.normal, profile.area);
-    let mut broke_any = false;
-    for pos in blocks {
-        let block = world.block(pos);
-        if block == deepcore_shared::voxel::AIR {
-            continue;
-        }
-        if !matches!(check_mine(&registry, block, &profile), MineCheck::Allowed { .. }) {
-            continue;
-        }
-        if world.set_block(pos, deepcore_shared::voxel::AIR) {
-            mark_dirty(&mut dirty, pos);
-            broke_any = true;
-        }
-    }
-
-    let _ = player;
-    if broke_any {
+    if progress.elapsed >= progress.required {
         progress.elapsed = 0.0;
-        progress.block = None;
+        // Ask again so a long dig keeps the server's job alive.
+        start.write(StartMining { block: pack_pos(target.block), face: target.face() });
     }
+    let _ = &player;
 }
 
-/// Places a block on right click, if the target face is free and the player has room.
+/// Asks the server to place a block on right click.
 pub fn placing_system(
     buttons: Res<ButtonInput<MouseButton>>,
-    player: Res<LocalPlayer>,
     targeting: Res<Targeting>,
     held: Res<HeldItem>,
-    mut world: ResMut<VoxelWorld>,
-    mut dirty: ResMut<DirtyChunks>,
+    mut place: MessageWriter<PlaceBlock>,
 ) {
     if !buttons.just_pressed(MouseButton::Right) {
         return;
@@ -133,17 +125,5 @@ pub fn placing_system(
     let (Some(target), Some(block)) = (targeting.target, held.place_block) else {
         return;
     };
-    let pos = target.placement;
-    if !pos.in_world() || world.block(pos) != deepcore_shared::voxel::AIR {
-        return;
-    }
-    // Do not place a block inside the player.
-    let player_box =
-        deepcore_shared::movement::Aabb::from_feet(player.state.position, player.state.height());
-    if player_box.intersects_block(pos) {
-        return;
-    }
-    if world.set_block(pos, block) {
-        mark_dirty(&mut dirty, pos);
-    }
+    place.write(PlaceBlock { position: pack_pos(target.placement), block });
 }

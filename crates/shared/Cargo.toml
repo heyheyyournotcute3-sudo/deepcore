@@ -26,6 +26,7 @@ bevy_replicon = { workspace = true, optional = true }
 serde = { workspace = true }
 ron = { workspace = true }
 postcard = { workspace = true }
+zstd = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 

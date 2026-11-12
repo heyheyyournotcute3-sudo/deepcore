@@ -7,12 +7,12 @@
 use bevy::input::mouse::AccumulatedMouseMotion;
 use bevy::prelude::*;
 use bevy::window::CursorOptions;
+use deepcore_shared::protocol::MoveIntent;
 
 use deepcore_shared::content::ContentRegistry;
 use deepcore_shared::mining::{Target, raycast};
 use deepcore_shared::movement::{
-    BlockPhysics, MoveInput, MoveTuning, PLAYER_EYE_HEIGHT, PlayerState, horizontal_speed,
-    step_player,
+    BlockPhysics, MoveInput, PLAYER_EYE_HEIGHT, PlayerState, horizontal_speed,
 };
 use deepcore_shared::voxel::world::VoxelWorld;
 
@@ -23,10 +23,8 @@ pub struct LocalPlayer {
     pub state: PlayerState,
     /// Input sequence counter, sent to the server in M2.
     pub seq: u32,
-    /// Physics classification of blocks.
+    /// Physics classification of blocks (shared with the prediction).
     pub physics: BlockPhysics,
-    /// Movement tuning constants.
-    pub tuning: MoveTuning,
 }
 
 impl LocalPlayer {
@@ -36,7 +34,6 @@ impl LocalPlayer {
             state: PlayerState::at(position),
             seq: 0,
             physics: BlockPhysics::from_registry(registry),
-            tuning: MoveTuning::default(),
         }
     }
 }
@@ -53,13 +50,23 @@ pub fn setup_player(
     mut commands: Commands,
     registry: Res<ContentRegistry>,
     world: Res<VoxelWorld>,
+    info: Res<crate::net::ServerInfo>,
+    net_players: Query<&deepcore_shared::protocol::NetPlayer>,
+    own: Res<crate::net::OwnPlayer>,
 ) {
-    let spawn = registry.world().spawn;
+    // The server's authoritative spawn, or the handshake hint if replication has not arrived.
+    let mut feet = crate::net::resolved_spawn(&info, &net_players, &own);
+    if feet.y <= 0.0 {
+        let spawn = registry.world().spawn;
+        feet = Vec3::new(spawn.0 as f32 + 0.5, spawn.1 as f32 + 2.0, spawn.2 as f32 + 0.5);
+    }
     let physics = BlockPhysics::from_registry(&registry);
-    let feet = deepcore_shared::movement::settle_on_ground(
-        &world,
-        &physics,
-        Vec3::new(spawn.0 as f32 + 0.5, spawn.1 as f32 + 2.0, spawn.2 as f32 + 0.5),
+    // Settle onto whatever terrain the chunks say is here, so the camera never starts inside
+    // a block if the server's position arrives a fraction early.
+    let feet = deepcore_shared::movement::settle_on_ground(&world, &physics, feet);
+    info!(
+        "player spawns at {feet:?} (terrain surface {} in that column)",
+        world.surface_y(feet.x as i32, feet.z as i32).unwrap_or(-1)
     );
     let mut player = LocalPlayer::new(feet, &registry);
     player.state.yaw = 0.0;
@@ -77,8 +84,10 @@ pub fn setup_player(
             ..default()
         },
         Transform::from_translation(feet + Vec3::Y * PLAYER_EYE_HEIGHT),
+        IsDefaultUiCamera,
         PlayerCamera,
     ));
+    commands.insert_resource(crate::prediction::Prediction::new(feet, player.physics.clone()));
     commands.insert_resource(player);
     commands.insert_resource(Targeting::default());
 }
@@ -87,16 +96,22 @@ pub fn setup_player(
 #[derive(Component)]
 pub struct PlayerCamera;
 
-/// Reads mouse and keyboard and advances the shared player simulation.
+/// Reads mouse and keyboard, advances the local prediction and sends the input to the server.
 pub fn player_input_system(
     time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
     mouse: Res<AccumulatedMouseMotion>,
     mut player: ResMut<LocalPlayer>,
+    mut prediction: ResMut<crate::prediction::Prediction>,
     world: Res<VoxelWorld>,
     mut camera: Query<&mut Transform, With<PlayerCamera>>,
     cursor_grab: Res<CursorGrab>,
+    mut intents: MessageWriter<MoveIntent>,
+    state: Res<crate::net::ConnectionState>,
 ) {
+    if !matches!(*state, crate::net::ConnectionState::Playing) {
+        return;
+    }
     // ---- mouse look
     if cursor_grab.grabbed {
         let sensitivity = 0.0022;
@@ -136,16 +151,21 @@ pub fn player_input_system(
     };
     player.seq = player.seq.wrapping_add(1);
 
-    // ---- fixed-step simulation, so the client already runs at the server's rate
+    // ---- predict locally at the server's fixed rate, and send the same input to the server
     let dt = 1.0 / deepcore_shared::SERVER_TICK_HZ as f32;
     let mut accumulated = time.delta_secs().min(0.1);
     while accumulated > 0.0 {
         let step = accumulated.min(dt);
-        // Split the borrow so the physics tables and the state can be used together.
-        let LocalPlayer { state, physics, tuning, .. } = &mut *player;
-        step_player(&world, physics, state, input, step, tuning);
+        prediction.apply_local(&world, input, step);
         accumulated -= step;
     }
+    if let Some(sent) = prediction.pending.back() {
+        intents.write(MoveIntent { input: *sent });
+    }
+
+    prediction.tick_smoothing(time.delta_secs());
+    player.state = prediction.state;
+    player.state.position = prediction.visual_position();
 
     if let Ok(mut transform) = camera.single_mut() {
         let eye = player.state.position + Vec3::Y * eye_offset(&player.state);

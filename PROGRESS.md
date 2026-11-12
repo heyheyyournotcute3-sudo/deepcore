@@ -33,7 +33,7 @@ VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json cargo run -p deepco
 |---|---|
 | M0 Workspace and skeleton | **done** |
 | M1 Voxel world | **done** |
-| M2 Multiplayer foundation | not started |
+| M2 Multiplayer foundation | **done** |
 | M3 Content, inventory, crafting (Era 0) | not started |
 | M4 Machines, research, Era 1 | not started |
 | M5 Era 2: steam + logistics | not started |
@@ -42,6 +42,43 @@ VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json cargo run -p deepco
 | M8 Era 5: nuclear | not started |
 | M9 Persistence and polish | not started |
 | M10 Lobby, accounts, server browser | not started |
+
+## M2 — Multiplayer foundation (done)
+
+**Built**
+- `shared::protocol`: versioned wire protocol (`PROTOCOL_VERSION = 2`) with replicated
+  components (`NetPlayer`, `NetOwner`), client intents (`ClientHello`, `MoveIntent`,
+  `StartMining`, `StopMining`, `PlaceBlock`, `Interact`) and server messages
+  (`HandshakeResult`, `ChunkData`, `ChunkUnload`, `BlockChanged`, `Notice`, `ChatLine`),
+  plus zstd-compressed chunk encode/decode with tests.
+- Server: renet/netcode transport on UDP (`--port`), handshake checking protocol version and
+  content hash, player spawning settled onto real terrain, chunk generation on
+  `AsyncComputeTaskPool` (nearest-first, spawn area pre-generated at startup), per-client
+  chunk streaming with unload messages, batched block-change broadcast, movement intent
+  application with sequence de-duplication and input sanitising, mining jobs validated for
+  reach + line of sight + tool tier + power, and placing validated for reach and overlap.
+- Client: main menu with "Host game" / "Join by IP" (plus `--connect ip:port --name X` for
+  scripted runs), handshake, chunk reception with neighbour re-meshing, authoritative block
+  changes, movement prediction with reconciliation and sub-threshold smoothing, remote player
+  interpolation, and server notices in the HUD.
+- `crates/client/src/prediction`: rewind-and-replay prediction with 5 tests including
+  "identical inputs produce identical positions" and "no correction when the server agrees".
+- Verified end to end: dedicated server + windowed client on one machine — handshake accepted,
+  player entity replicated, 605 chunks streamed, player standing on the camp surface
+  (depth −1 m in the HUD), no panics.
+
+**Deferred**
+- Bots (`--bots`) are parsed but not spawned yet; they arrive with the load-test tooling.
+- `--simulate-latency` is accepted and logged but renet exposes no delay knob, so it does not
+  yet alter traffic. `--simulate-loss` is likewise accepted and logged.
+- Interest management uses explicit chunk messages rather than replicon's per-client
+  visibility filters; block changes are filtered by the per-client visible set.
+
+**Known issues**
+- A client that connects and then idles for a long time may time out (renet default); a
+  reconnect flow is not implemented yet.
+- The handshake must run in `PreUpdate` (before replicon's send set) or the client never sees
+  the result — documented in `crates/server/src/main.rs`.
 
 ## M1 — Voxel world (done)
 

@@ -22,6 +22,7 @@ bevy_replicon = { version = "=0.45.5", default-features = false, features = [
 bevy_replicon_renet = { version = "=0.21.0", default-features = false, features = [
     "client",
     "server",
+    "renet_netcode",
 ] }
 bevy_egui = "=0.43.1"
 

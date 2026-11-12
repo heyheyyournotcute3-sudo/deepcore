@@ -143,7 +143,7 @@ fn default_state() -> PlayerState {
 /// Movement is expressed in the player's local frame so the server can validate it without
 /// knowing the client's camera: `forward` is along the look direction on the XZ plane and
 /// `right` is its perpendicular.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct MoveInput {
     /// Monotonic sequence number, used to acknowledge processed inputs.
     pub seq: u32,
