@@ -107,20 +107,7 @@ pub fn start_client(world: &mut World) {
 
 /// Registers the client side of the protocol.
 pub fn register_protocol(app: &mut App) {
-    app.add_client_message::<MoveIntent>(Channel::Unordered)
-        .add_client_message::<StartMining>(Channel::Ordered)
-        .add_client_message::<StopMining>(Channel::Ordered)
-        .add_client_message::<PlaceBlock>(Channel::Ordered)
-        .add_client_message::<Interact>(Channel::Ordered)
-        .add_client_message::<ClientHello>(Channel::Ordered)
-        .add_server_message::<HandshakeResult>(Channel::Ordered)
-        .add_server_message::<ChunkData>(Channel::Ordered)
-        .add_server_message::<ChunkUnload>(Channel::Ordered)
-        .add_server_message::<BlockChanged>(Channel::Ordered)
-        .add_server_message::<Notice>(Channel::Ordered)
-        .add_server_message::<ChatLine>(Channel::Ordered);
-
-    app.replicate::<NetPlayer>().replicate::<NetOwner>().replicate::<Transform>();
+    deepcore_shared::protocol::register_all(app);
 }
 
 /// Sends the hello once the connection is up.
@@ -156,7 +143,10 @@ pub fn handle_handshake_result(
     mut info: ResMut<ServerInfo>,
 ) {
     for result in results.read() {
-        debug!("handshake result: accepted={} reason={:?}", result.accepted, result.reason);
+        debug!(
+            "handshake result: accepted={} reason={:?} spawn={:?}",
+            result.accepted, result.reason, result.spawn
+        );
         if result.accepted {
             info.accepted = true;
             info.world_seed = result.world_seed;

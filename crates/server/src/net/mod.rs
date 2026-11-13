@@ -128,25 +128,7 @@ pub fn start_server(world: &mut World) {
 
 /// Registers all client intents and server messages with their channels.
 pub fn register_protocol(app: &mut App) {
-    // Client → server. Movement is unreliable (a late input is worthless), everything else is
-    // reliable and ordered (mining and placing must never be reordered).
-    app.add_client_message::<MoveIntent>(Channel::Unordered)
-        .add_client_message::<StartMining>(Channel::Ordered)
-        .add_client_message::<StopMining>(Channel::Ordered)
-        .add_client_message::<PlaceBlock>(Channel::Ordered)
-        .add_client_message::<Interact>(Channel::Ordered)
-        .add_client_message::<ClientHello>(Channel::Ordered);
-
-    // Server → client.
-    app.add_server_message::<HandshakeResult>(Channel::Ordered)
-        .add_server_message::<ChunkData>(Channel::Ordered)
-        .add_server_message::<ChunkUnload>(Channel::Ordered)
-        .add_server_message::<BlockChanged>(Channel::Ordered)
-        .add_server_message::<Notice>(Channel::Ordered)
-        .add_server_message::<ChatLine>(Channel::Ordered);
-
-    // Replicated components.
-    app.replicate::<NetPlayer>().replicate::<NetOwner>().replicate::<Transform>();
+    deepcore_shared::protocol::register_all(app);
 }
 
 /// Creates a server player entity for a client that completed the handshake.
@@ -159,11 +141,16 @@ pub fn spawn_player(
     name: String,
 ) -> Entity {
     let spawn = registry.world().spawn;
-    let surface = world.surface_y(spawn.0, spawn.2).unwrap_or(registry.world().surface_y);
+    // Only trust the loaded world if the spawn column's chunk is present; otherwise use the
+    // configured surface height, which is where generation will put the ground.
+    let surface = world
+        .surface_y(spawn.0, spawn.2)
+        .filter(|_| world.is_loaded(deepcore_shared::voxel::BlockPos::new(spawn.0, 1, spawn.2)))
+        .unwrap_or(registry.world().surface_y);
     let feet = deepcore_shared::movement::settle_on_ground(
         world,
         &physics.physics,
-        Vec3::new(spawn.0 as f32 + 0.5, surface as f32 + 2.0, spawn.2 as f32 + 0.5),
+        Vec3::new(spawn.0 as f32 + 0.5, surface as f32 + 1.0, spawn.2 as f32 + 0.5),
     );
     let state = PlayerState::at(feet);
     let net = NetPlayer::from_state(&state, 0);
@@ -176,15 +163,48 @@ pub fn spawn_player(
             net,
             NetOwner { client: client_id },
             ServerPlayer { state, last_seq: 0, mining: None, tool, name },
+            crate::sim::inventory::PlayerInventory::starting(registry),
         ))
         .id()
 }
 
 use deepcore_shared::movement::PlayerState;
 
+/// Re-sends the handshake result every second until the client acknowledges it.
+///
+/// UDP with a reliable channel should deliver it once, but resending makes a lost first
+/// packet harmless and costs nothing.
+#[derive(Resource, Default)]
+pub struct PendingHandshakes {
+    /// Results waiting to be sent, keyed by renet client id.
+    pub pending: HashMap<u64, (HandshakeResult, u32)>,
+}
+
+/// Resends pending handshake results.
+pub fn resend_handshakes(
+    mut pending: ResMut<PendingHandshakes>,
+    sessions: Res<ClientSessions>,
+    mut out: MessageWriter<ToClients<HandshakeResult>>,
+) {
+    for (client_id, (result, attempts)) in pending.pending.iter_mut() {
+        if *attempts >= 30 {
+            continue;
+        }
+        let Some(entity) = sessions.entities.get(client_id).copied() else {
+            continue;
+        };
+        out.write(ToClients {
+            targets: SendTargets::Single(ClientId::Client(entity)),
+            message: result.clone(),
+        });
+        *attempts += 1;
+    }
+}
+
 /// Handles the handshake: version and content checks, then spawn the player.
 pub fn handle_handshake(
     mut commands: Commands,
+    mut pending: ResMut<PendingHandshakes>,
     mut hellos: MessageReader<FromClient<ClientHello>>,
     mut results: MessageWriter<ToClients<HandshakeResult>>,
     mut sessions: ResMut<ClientSessions>,
@@ -258,17 +278,17 @@ pub fn handle_handshake(
             });
         let world_seed = world_gen_seed;
         info!("client {client_id} ({name}) joined; handshake result queued");
-        results.write(ToClients {
-            targets: SendTargets::Single(sender),
-            message: HandshakeResult {
-                accepted: true,
-                reason: String::new(),
-                protocol_version: PROTOCOL_VERSION,
-                content_hash: content_hash(),
-                world_seed,
-                spawn,
-            },
-        });
+        let result = HandshakeResult {
+            accepted: true,
+            reason: String::new(),
+            protocol_version: PROTOCOL_VERSION,
+            content_hash: content_hash(),
+            world_seed,
+            spawn,
+        };
+        debug!("sending handshake result to {client_id} at {spawn:?}");
+        results.write(ToClients { targets: SendTargets::Single(sender), message: result.clone() });
+        pending.pending.insert(client_id, (result, 0));
     }
 }
 
@@ -342,5 +362,36 @@ pub fn channel_configs_with_loss(
 pub fn insert_world_gen(world: &mut World) {
     let registry = world.resource::<ContentRegistry>().0.clone();
     let seed = world.get_resource::<ServerOptions>().map(|o| o.seed).unwrap_or_default();
-    world.insert_resource(ServerWorldGen::new(seed, registry));
+    let generator = ServerWorldGen::new(seed, registry.clone());
+
+    // Generate the chunks around the spawn before the socket opens, so the first player to
+    // join is settled onto real terrain rather than empty space.
+    let spawn = registry.world().spawn;
+    let center = ChunkPos::new(
+        spawn.0.div_euclid(deepcore_shared::voxel::CHUNK_SIZE),
+        spawn.1.div_euclid(deepcore_shared::voxel::CHUNK_SIZE),
+        spawn.2.div_euclid(deepcore_shared::voxel::CHUNK_SIZE),
+    );
+    let started = std::time::Instant::now();
+    let mut generated = 0;
+    {
+        let mut voxel_world = world.resource_mut::<VoxelWorld>();
+        for dy in -1..=1 {
+            for dz in -1..=1 {
+                for dx in -1..=1 {
+                    let pos = center.offset(dx, dy, dz);
+                    if pos.in_world() && !voxel_world.contains(pos) {
+                        voxel_world.insert(pos, generator.0.generate_chunk(pos));
+                        generated += 1;
+                    }
+                }
+            }
+        }
+    }
+    info!(
+        "generated {generated} spawn chunks in {:.0} ms",
+        started.elapsed().as_secs_f64() * 1000.0
+    );
+
+    world.insert_resource(generator);
 }

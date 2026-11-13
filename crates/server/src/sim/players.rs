@@ -229,10 +229,14 @@ pub fn handle_stop_mining(
 
 /// Advances mining jobs and breaks blocks when they finish.
 pub fn advance_mining(
+    mut commands: Commands,
+    machines: Query<(Entity, &crate::sim::machines::BlockEntity)>,
     mut players: Query<(Entity, &mut ServerPlayer, &NetOwner)>,
+    mut inventories: Query<&mut crate::sim::inventory::PlayerInventory>,
     mut world: ResMut<VoxelWorld>,
     registry: Res<ContentRegistry>,
     mut changes: MessageWriter<BlockChanged>,
+    mut pickups: MessageWriter<crate::sim::inventory::SpawnPickup>,
 ) {
     for (entity, mut player, _owner) in &mut players {
         let Some(job) = player.mining else {
@@ -271,23 +275,55 @@ pub fn advance_mining(
             if !matches!(check_mine(&registry, block, &profile), MineCheck::Allowed { .. }) {
                 continue;
             }
+            // Breaking a machine block spills its contents rather than destroying them.
+            if let Some(entry) = registry.block(block)
+                && entry.machine.is_some()
+                && let Some((machine_entity, machine)) =
+                    machines.iter().find(|(_, machine)| machine.position == pos)
+            {
+                crate::sim::machines::despawn_machine_with_contents(
+                    &mut commands,
+                    machine,
+                    &registry,
+                    &mut pickups,
+                );
+                commands.entity(machine_entity).despawn();
+            }
             if world.set_block(pos, deepcore_shared::voxel::AIR) {
                 changes.write(BlockChanged {
                     position: pack_pos(pos),
                     block: deepcore_shared::voxel::AIR,
                 });
+                // Drops go straight into the miner's inventory; anything that does not fit
+                // becomes a pickup in the world so nothing is silently destroyed.
+                let mut overflow = Vec::new();
+                if let Ok(mut inventory) = inventories.get_mut(entity) {
+                    crate::sim::inventory::grant_drops(
+                        &registry,
+                        &mut inventory.inventory,
+                        block,
+                        &mut overflow,
+                    );
+                    inventory.dirty = true;
+                }
+                for slot in overflow {
+                    pickups.write(crate::sim::inventory::SpawnPickup { position: pos, slot });
+                }
                 broke = true;
             }
         }
         player.mining = None;
-        let _ = (broke, entity);
+        let _ = broke;
     }
 }
 
 /// Places a block when the client asks, validating reach, emptiness and overlap with players.
 pub fn handle_place_block(
+    mut commands: Commands,
     sessions: Res<crate::net::ClientSessions>,
     mut players: Query<(&mut ServerPlayer, &NetOwner)>,
+    inventories: Query<(&crate::sim::inventory::PlayerInventory, &NetOwner)>,
+    registry: Res<ContentRegistry>,
     mut intents: MessageReader<FromClient<PlaceBlock>>,
     mut world: ResMut<VoxelWorld>,
     mut changes: MessageWriter<BlockChanged>,
@@ -321,8 +357,24 @@ pub fn handle_place_block(
         if player_box.intersects_block(pos) {
             continue;
         }
-        if world.set_block(pos, intent.block) {
-            changes.write(BlockChanged { position: pack_pos(pos), block: intent.block });
+        // Only the placing player's own inventory matters: derive the block from the item the
+        // server knows they hold, never from what the client claims.
+        let Some((inventory, _)) = inventories.iter().find(|(_, owner)| owner.client == client_id)
+        else {
+            continue;
+        };
+        let Some(block) = inventory.held_block(&registry) else {
+            continue;
+        };
+
+        if world.set_block(pos, block) {
+            changes.write(BlockChanged { position: pack_pos(pos), block });
+            // A machine block becomes a block entity so it can be fed and opened.
+            if let Some(entry) = registry.block(block)
+                && let Some(machine_id) = entry.machine
+            {
+                crate::sim::machines::spawn_machine(&mut commands, &registry, machine_id, pos, 0);
+            }
         }
     }
 }

@@ -34,7 +34,7 @@ VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json cargo run -p deepco
 | M0 Workspace and skeleton | **done** |
 | M1 Voxel world | **done** |
 | M2 Multiplayer foundation | **done** |
-| M3 Content, inventory, crafting (Era 0) | not started |
+| M3 Content, inventory, crafting (Era 0) | **done** |
 | M4 Machines, research, Era 1 | not started |
 | M5 Era 2: steam + logistics | not started |
 | M6 Era 3: electricity | not started |
@@ -42,6 +42,44 @@ VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json cargo run -p deepco
 | M8 Era 5: nuclear | not started |
 | M9 Persistence and polish | not started |
 | M10 Lobby, accounts, server browser | not started |
+
+## M3 — Content, inventory, crafting, Era 0 (done)
+
+**Built**
+- `shared::inventory`: 45-slot player inventory (9 hotbar + 36 backpack), stacks that respect
+  per-item stack sizes, merge/split/quick-move/remove/insert, drain-and-restore for death
+  drops, postcard round-trips. 11 tests.
+- `shared::crafting`: `MachineState` — inputs, outputs, fuel, recipe selection, progress,
+  module modifiers, and the `IdleReason` set the UI shows. Hand crafting with `can_craft` /
+  `craft` and explicit error types. 11 tests.
+- `shared::tech`: the team tech tree — unlock state, parent gating, deposits, completion,
+  recipe unlock, era tracking. 6 tests.
+- Protocol v3: `MoveItems`, `CraftRequest`, `SelectHotbar`, `ResearchDeposit`,
+  `InventorySnapshot`, `MachineSnapshot`, `TechSnapshot`, plus `NetMachine` replication.
+- **Protocol registration is now one shared function** (`protocol::register_all`). This fixed
+  a real bug: the client and server lists had drifted, replicon's protocol hash disagreed and
+  every connection was killed with "protocol mismatch".
+- Server: per-player inventories (starting steel pickaxe), inventory sync on change, mining
+  drops straight into the miner, overflow to world pickups, pickups collectable by walking,
+  death drops the backpack as a recoverable crate, block entities with machine state, machine
+  ticking, machine contents spilled when broken, placing validated against the server's idea
+  of the held item, research deposits, tech broadcast.
+- Client: inventory panel (click to move, right-click to split, shift-click quick move),
+  crafting panel with live material counts, machine panel with slots and idle reason, research
+  panel per Era with deposit buttons, HUD hotbar with item colours and counts, held-item name,
+  objective line, notices.
+- Verified live: client connects, spawns on the camp surface (y=481, depth -1 m), hotbar shows
+  the steel pickaxe, objective line shows the first tech node.
+
+**Deferred**
+- Minecarts and lifts that make hauling a logistics problem arrive in M5.
+- The tech tree panel is a per-Era list, not the zoomable node graph; the graph arrives with
+  the M4 research polish.
+- No separate axe: the pickaxe chops trees.
+
+**Known issues**
+- egui panels only render once a camera carries `PrimaryEguiContext`; both cameras now do.
+- The loading text can flash for a frame before the panels appear.
 
 ## M2 — Multiplayer foundation (done)
 

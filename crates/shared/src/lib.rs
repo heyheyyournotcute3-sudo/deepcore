@@ -13,10 +13,13 @@ use bevy::prelude::*;
 pub mod atlas;
 pub mod balance;
 pub mod content;
+pub mod crafting;
+pub mod inventory;
 pub mod mesh;
 pub mod mining;
 pub mod movement;
 pub mod protocol;
+pub mod tech;
 pub mod voxel;
 pub mod worldgen;
 

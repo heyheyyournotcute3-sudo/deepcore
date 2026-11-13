@@ -137,6 +137,83 @@ pub struct PlaceBlock {
     pub block: u16,
 }
 
+/// Move items between slots (inventory drag and drop, shift-click, splits).
+#[derive(Message, Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct MoveItems {
+    /// Source container: 0 = player inventory, otherwise a machine entity id.
+    pub from_container: u64,
+    /// Source slot index.
+    pub from_slot: u16,
+    /// Destination container.
+    pub to_container: u64,
+    /// Destination slot index.
+    pub to_slot: u16,
+    /// How many to move; `u32::MAX` means "as many as possible".
+    pub count: u32,
+}
+
+/// Craft a recipe by hand or at a workbench.
+#[derive(Message, Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct CraftRequest {
+    /// The recipe to craft.
+    pub recipe: u16,
+    /// How many times to craft it.
+    pub count: u32,
+}
+
+/// Select a hotbar slot.
+#[derive(Message, Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct SelectHotbar {
+    /// Slot index, 0..9.
+    pub slot: u8,
+}
+
+/// Deliver items to the Research Desk for a tech node.
+#[derive(Message, Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct ResearchDeposit {
+    /// The tech node.
+    pub node: u16,
+}
+
+/// A full inventory snapshot, sent to its owner on change.
+#[derive(Message, Clone, Debug, Serialize, Deserialize)]
+pub struct InventorySnapshot {
+    /// All 45 slots, hotbar first.
+    pub slots: Vec<crate::inventory::Slot>,
+    /// The selected hotbar slot.
+    pub selected: u8,
+}
+
+/// A machine's full contents, sent while a player has its UI open.
+#[derive(Message, Clone, Debug, Serialize, Deserialize)]
+pub struct MachineSnapshot {
+    /// The machine entity, as the client knows it.
+    pub entity: u64,
+    /// Input slots.
+    pub inputs: Vec<crate::inventory::Slot>,
+    /// Output slots.
+    pub outputs: Vec<crate::inventory::Slot>,
+    /// Fuel slots.
+    pub fuel: Vec<crate::inventory::Slot>,
+    /// The recipe being run, if any.
+    pub recipe: Option<u16>,
+    /// Progress, 0..1.
+    pub progress: f32,
+    /// Why it is idle, if it is.
+    pub idle: Option<String>,
+    /// Installed modules.
+    pub modules: Vec<u8>,
+}
+
+/// The whole tech tree's state, broadcast when it changes.
+#[derive(Message, Clone, Debug, Serialize, Deserialize)]
+pub struct TechSnapshot {
+    /// Which nodes are unlocked.
+    pub unlocked: Vec<bool>,
+    /// Delivered items per node, flattened as `(node, item, count)`.
+    pub deposits: Vec<(u16, u16, u32)>,
+}
+
 /// Interact with a machine or container.
 #[derive(Message, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Interact {
@@ -202,6 +279,45 @@ pub struct ChatLine {
     pub from: String,
     /// The message.
     pub text: String,
+}
+
+/// Registers every message and replicated component, in one fixed order.
+///
+/// Replicon hashes the protocol (message types, channels and replication rules) and refuses a
+/// client whose hash differs from the server's. Registering from a single function on both
+/// sides is the only reliable way to keep the two in step: adding a message here changes both
+/// builds at once, and the order can never drift.
+pub fn register_all(app: &mut bevy::prelude::App) {
+    use bevy_replicon::prelude::*;
+
+    // Client → server.
+    app.add_client_message::<MoveIntent>(Channel::Unordered)
+        .add_client_message::<StartMining>(Channel::Ordered)
+        .add_client_message::<StopMining>(Channel::Ordered)
+        .add_client_message::<PlaceBlock>(Channel::Ordered)
+        .add_client_message::<Interact>(Channel::Ordered)
+        .add_client_message::<ClientHello>(Channel::Ordered)
+        .add_client_message::<MoveItems>(Channel::Ordered)
+        .add_client_message::<CraftRequest>(Channel::Ordered)
+        .add_client_message::<SelectHotbar>(Channel::Ordered)
+        .add_client_message::<ResearchDeposit>(Channel::Ordered);
+
+    // Server → client.
+    app.add_server_message::<HandshakeResult>(Channel::Ordered)
+        .add_server_message::<ChunkData>(Channel::Ordered)
+        .add_server_message::<ChunkUnload>(Channel::Ordered)
+        .add_server_message::<BlockChanged>(Channel::Ordered)
+        .add_server_message::<Notice>(Channel::Ordered)
+        .add_server_message::<ChatLine>(Channel::Ordered)
+        .add_server_message::<InventorySnapshot>(Channel::Ordered)
+        .add_server_message::<MachineSnapshot>(Channel::Ordered)
+        .add_server_message::<TechSnapshot>(Channel::Ordered);
+
+    // Replicated components.
+    app.replicate::<NetPlayer>()
+        .replicate::<NetOwner>()
+        .replicate::<NetMachine>()
+        .replicate::<Transform>();
 }
 
 // ---------------------------------------------------------------- helpers

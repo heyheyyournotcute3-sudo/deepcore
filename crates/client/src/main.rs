@@ -17,6 +17,8 @@ mod mining;
 mod net;
 mod prediction;
 mod render;
+mod state;
+mod ui;
 
 fn main() {
     let mut app = App::new();
@@ -50,6 +52,7 @@ fn main() {
         RepliconRenetPlugins,
         deepcore_shared::SharedPlugin,
         render::VoxelRenderPlugin,
+        ui::UiPlugin,
     ));
 
     // Resources.
@@ -66,6 +69,8 @@ fn main() {
     app.init_resource::<net::ServerInfo>();
     app.init_resource::<net::Notices>();
     app.init_resource::<net::OwnPlayer>();
+    app.init_resource::<state::ClientInventory>();
+    app.init_resource::<state::ClientTech>();
     app.insert_resource(deepcore_shared::voxel::world::VoxelWorld::new());
     app.insert_resource(Time::<Fixed>::from_hz(deepcore_shared::SERVER_TICK_HZ));
 
@@ -96,8 +101,15 @@ fn main() {
             net::tick_notices,
             net::finish_loading,
             net::find_own_player,
+            state::receive_inventory,
+            state::receive_tech,
+            state::receive_machine,
+            state::track_open_machine,
         )
-            .chain(),
+            .chain()
+            // Remote messages are only readable after replicon has received and dispatched
+            // them this frame.
+            .after(bevy_replicon::prelude::ClientSystems::Receive),
     );
 
     app.add_systems(
@@ -183,7 +195,9 @@ fn needs_player_setup(
     info: Option<Res<net::ServerInfo>>,
     player: Option<Res<input::LocalPlayer>>,
 ) -> bool {
-    *state.get() == GameState::Playing && info.is_some() && player.is_none()
+    // Wait for the handshake: the spawn position comes from the server, and creating the
+    // player before it arrives would put the camera at the world floor.
+    *state.get() == GameState::Playing && info.is_some_and(|info| info.accepted) && player.is_none()
 }
 
 /// A camera for the menu: Bevy UI needs a camera to render into.
@@ -193,6 +207,7 @@ fn setup_menu_camera(mut commands: Commands) {
         Camera { order: -1, ..default() },
         IsDefaultUiCamera,
         Transform::from_xyz(-4.0, 3.0, 6.0).looking_at(Vec3::ZERO, Vec3::Y),
+        bevy_egui::PrimaryEguiContext,
         MenuCamera,
     ));
 }

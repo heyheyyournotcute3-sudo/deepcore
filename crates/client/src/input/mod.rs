@@ -85,6 +85,9 @@ pub fn setup_player(
         },
         Transform::from_translation(feet + Vec3::Y * PLAYER_EYE_HEIGHT),
         IsDefaultUiCamera,
+        // egui needs one camera marked as the primary context, otherwise the UI pass never
+        // runs and no panel is ever drawn.
+        bevy_egui::PrimaryEguiContext,
         PlayerCamera,
     ));
     commands.insert_resource(crate::prediction::Prediction::new(feet, player.physics.clone()));

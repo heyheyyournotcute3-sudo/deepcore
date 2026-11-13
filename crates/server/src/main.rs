@@ -40,6 +40,7 @@ fn main() {
     app.insert_resource(Time::<Fixed>::from_hz(TICK_HZ));
     app.insert_resource(options.clone());
     app.init_resource::<ClientSessions>();
+    app.init_resource::<net::PendingHandshakes>();
     app.init_resource::<world::chunks::GenerationQueue>();
     app.insert_resource(VoxelWorld::new());
 
@@ -48,7 +49,12 @@ fn main() {
     // Startup: content-derived tables, the generator and the listening socket.
     app.add_systems(
         Startup,
-        (|world: &mut World| net::insert_world_gen(world), setup_server_tables, net::start_server)
+        (
+            |world: &mut World| net::insert_world_gen(world),
+            setup_server_tables,
+            setup_tech,
+            net::start_server,
+        )
             .chain(),
     );
 
@@ -64,6 +70,13 @@ fn main() {
             sim::players::announce_join,
             world::chunks::generate_chunks,
             world::chunks::unload_distant_chunks,
+            sim::machines::tick_machines,
+            sim::items::sync_held_tool,
+            sim::inventory::spawn_pickups,
+            sim::inventory::age_pickups,
+            sim::inventory::drop_backpack_on_death,
+            sim::inventory::collect_death_crates,
+            sim::inventory::collect_pickups,
         )
             .chain()
             .run_if(in_state(ServerState::Running)),
@@ -71,6 +84,26 @@ fn main() {
 
     // The handshake must run before replicon flushes its outgoing messages, so the client
     // gets the result on the same tick it is accepted.
+    // Inventory, crafting and machine intents: validated, then applied.
+    app.add_systems(
+        Update,
+        (
+            sim::items::handle_move_items,
+            sim::items::handle_craft,
+            sim::items::handle_select_hotbar,
+            sim::machines::handle_research,
+            sim::machines::send_machine_snapshot,
+            sim::inventory::sync_inventories,
+            sim::inventory::clear_inventory_flags,
+            sim::machines::sync_tech,
+            sim::machines::sync_machine_replication,
+        )
+            .chain()
+            .run_if(in_state(ServerState::Running)),
+    );
+
+    app.add_message::<sim::inventory::SpawnPickup>();
+
     app.add_systems(
         PreUpdate,
         net::handle_handshake.after(ServerSystems::Receive).run_if(in_state(ServerState::Running)),
@@ -79,7 +112,7 @@ fn main() {
     // Streaming runs after the simulation so it sends this tick's state.
     app.add_systems(
         PostUpdate,
-        (net::stream::stream_chunks, net::stream::broadcast_block_changes)
+        (net::resend_handshakes, net::stream::stream_chunks, net::stream::broadcast_block_changes)
             .before(ServerSystems::Send)
             .run_if(in_state(ServerState::Running)),
     );
@@ -92,38 +125,16 @@ fn main() {
     app.run();
 }
 
+/// Creates the shared tech tree once content is loaded.
+fn setup_tech(mut commands: Commands, registry: Res<ContentRegistry>) {
+    commands.insert_resource(sim::machines::SharedTech::new(&registry.0));
+}
+
 /// Builds the physics tables from content once the registry exists, and generates the chunks
 /// around the spawn synchronously so players can be settled onto real terrain on join.
-fn setup_server_tables(
-    mut commands: Commands,
-    registry: Res<ContentRegistry>,
-    generator: Res<world::chunks::ServerWorldGen>,
-    mut world: ResMut<VoxelWorld>,
-) {
+fn setup_server_tables(mut commands: Commands, registry: Res<ContentRegistry>) {
     commands.insert_resource(ServerPhysics::from_registry(&registry));
 
-    let spawn = registry.world().spawn;
-    let center = deepcore_shared::voxel::ChunkPos::new(
-        spawn.0.div_euclid(deepcore_shared::voxel::CHUNK_SIZE),
-        spawn.1.div_euclid(deepcore_shared::voxel::CHUNK_SIZE),
-        spawn.2.div_euclid(deepcore_shared::voxel::CHUNK_SIZE),
-    );
-    let started = std::time::Instant::now();
-    for dy in -1..=1 {
-        for dz in -1..=1 {
-            for dx in -1..=1 {
-                let pos = center.offset(dx, dy, dz);
-                if pos.in_world() && !world.contains(pos) {
-                    world.insert(pos, generator.0.generate_chunk(pos));
-                }
-            }
-        }
-    }
-    info!(
-        "generated {} spawn chunks in {:.0} ms",
-        world.loaded_chunks(),
-        started.elapsed().as_secs_f64() * 1000.0
-    );
     let spawn = registry.world().spawn;
     info!(
         "world ready: seed {:#x}, spawn at {:?}, {} blocks, {} items, {} machines",
