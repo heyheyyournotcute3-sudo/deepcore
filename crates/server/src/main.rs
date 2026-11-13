@@ -71,6 +71,8 @@ fn main() {
             world::chunks::generate_chunks,
             world::chunks::unload_distant_chunks,
             sim::machines::tick_machines,
+            sim::placement::burn_fuel,
+            sim::placement::sync_player_view,
             sim::items::sync_held_tool,
             sim::inventory::spawn_pickups,
             sim::inventory::age_pickups,
@@ -97,12 +99,14 @@ fn main() {
             sim::inventory::clear_inventory_flags,
             sim::machines::sync_tech,
             sim::machines::sync_machine_replication,
+            sim::placement::place_machine,
         )
             .chain()
             .run_if(in_state(ServerState::Running)),
     );
 
     app.add_message::<sim::inventory::SpawnPickup>();
+    app.add_message::<sim::placement::PlaceMachineRequest>();
 
     app.add_systems(
         PreUpdate,

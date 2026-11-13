@@ -18,6 +18,7 @@ pub mod inventory;
 pub mod mesh;
 pub mod mining;
 pub mod movement;
+pub mod placement;
 pub mod protocol;
 pub mod tech;
 pub mod voxel;

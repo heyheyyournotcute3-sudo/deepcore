@@ -164,6 +164,7 @@ pub fn spawn_player(
             NetOwner { client: client_id },
             ServerPlayer { state, last_seq: 0, mining: None, tool, name },
             crate::sim::inventory::PlayerInventory::starting(registry),
+            crate::sim::placement::ServerPlayerView { position: feet },
         ))
         .id()
 }

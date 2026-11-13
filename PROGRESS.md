@@ -35,13 +35,35 @@ VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json cargo run -p deepco
 | M1 Voxel world | **done** |
 | M2 Multiplayer foundation | **done** |
 | M3 Content, inventory, crafting (Era 0) | **done** |
-| M4 Machines, research, Era 1 | not started |
+| M4 Machines, research, Era 1 | **done** |
 | M5 Era 2: steam + logistics | not started |
 | M6 Era 3: electricity | not started |
 | M7 Era 4: chemistry + deep metallurgy | not started |
 | M8 Era 5: nuclear | not started |
 | M9 Persistence and polish | not started |
 | M10 Lobby, accounts, server browser | not started |
+
+## M4 — Machines, research and Era 1 (done)
+
+**Built**
+- `shared::placement`: multi-block footprints, rotation (quarter turns swap X/Z), and a
+  validator that rejects out-of-world, blocked, player-occupied and unresearched placements
+  with a readable reason. 7 tests.
+- Server: `PlaceMachineRequest` handling that validates the whole footprint before writing any
+  block, checks research, consumes the kit, writes the footprint and spawns the block entity;
+  fuel burning; machine ticking with the real `MachineState`; contents spilled when a machine
+  is broken; replicated coarse machine state.
+- Machine kits route through the placement validator, so a blast furnace can never be placed as
+  a single block or half-built.
+- `crates/shared/tests/progression_eras.rs`: Era 1 integration test driving raw ore -> iron ->
+  steel -> plates, a test reaching the Hardened Steel Pickaxe through research and crafting,
+  plus checks that every Era has nodes, the tool ladder is monotonic and every layer is
+  enterable with its Era's tool. 5 tests.
+
+**Deferred**
+- No translucent ghost mesh in the world yet; the HUD reports the rejection reason instead.
+- Rotation is implemented and validated but not yet bound to a key on the client.
+- The tech tree UI is still the per-Era list from M3, not a zoomable node graph.
 
 ## M3 — Content, inventory, crafting, Era 0 (done)
 

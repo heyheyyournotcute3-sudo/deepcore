@@ -319,7 +319,7 @@ pub fn advance_mining(
 
 /// Places a block when the client asks, validating reach, emptiness and overlap with players.
 pub fn handle_place_block(
-    mut commands: Commands,
+    mut machine_requests: MessageWriter<crate::sim::placement::PlaceMachineRequest>,
     sessions: Res<crate::net::ClientSessions>,
     mut players: Query<(&mut ServerPlayer, &NetOwner)>,
     inventories: Query<(&crate::sim::inventory::PlayerInventory, &NetOwner)>,
@@ -367,14 +367,21 @@ pub fn handle_place_block(
             continue;
         };
 
+        // Machine kits go through the footprint validator, which also checks research.
+        if let Some(entry) = registry.block(block)
+            && let Some(machine_id) = entry.machine
+        {
+            machine_requests.write(crate::sim::placement::PlaceMachineRequest {
+                client: client_id,
+                machine: machine_id.0,
+                origin: pos,
+                facing: 0,
+            });
+            continue;
+        }
+
         if world.set_block(pos, block) {
             changes.write(BlockChanged { position: pack_pos(pos), block });
-            // A machine block becomes a block entity so it can be fed and opened.
-            if let Some(entry) = registry.block(block)
-                && let Some(machine_id) = entry.machine
-            {
-                crate::sim::machines::spawn_machine(&mut commands, &registry, machine_id, pos, 0);
-            }
         }
     }
 }

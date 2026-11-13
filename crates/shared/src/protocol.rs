@@ -287,6 +287,7 @@ pub struct ChatLine {
 /// client whose hash differs from the server's. Registering from a single function on both
 /// sides is the only reliable way to keep the two in step: adding a message here changes both
 /// builds at once, and the order can never drift.
+#[cfg(feature = "net")]
 pub fn register_all(app: &mut bevy::prelude::App) {
     use bevy_replicon::prelude::*;
 
