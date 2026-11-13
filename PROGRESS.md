@@ -36,12 +36,34 @@ VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json cargo run -p deepco
 | M2 Multiplayer foundation | **done** |
 | M3 Content, inventory, crafting (Era 0) | **done** |
 | M4 Machines, research, Era 1 | **done** |
-| M5 Era 2: steam + logistics | not started |
+| M5 Era 2: steam + logistics | **done**
 | M6 Era 3: electricity | not started |
 | M7 Era 4: chemistry + deep metallurgy | not started |
 | M8 Era 5: nuclear | not started |
 | M9 Persistence and polish | not started |
 | M10 Lobby, accounts, server browser | not started |
+
+## M5 — Era 2: steam, ore processing (done)
+
+**Built**
+- `shared::power`: steam and electric networks with flood-fill topology, machines joining the
+  network of any adjacent pipe or cable, brownout scaling (`supply / demand`), battery
+  charge/discharge with capacity, per-network and global totals. 12 tests.
+- Server: `ServerPower` resource, topology rebuilt only when a pipe, cable or machine changes,
+  networks ticked every server tick, and machine speed driven by the real satisfaction factor
+  so an overloaded grid genuinely slows every consumer down.
+- Ore processing: crusher (1.5x) and washer (2.0x) yields proven by the Era 2 progression test,
+  which drives raw ore -> crushed -> washed -> ingots through the real machines.
+- `crates/shared/tests/progression_era2.rs`: ore yield comparison, boiler-powering-engine
+  network, Steam Drill craftability and its tier-3 gate into the Basalt Furnace, and that the
+  Era 2 machines are unlocked by the right tech nodes. 4 tests.
+
+**Deferred**
+- Conveyors, item pipes, rails, minecarts and the Mine Lift are defined in content and craftable
+  but do not move items or players yet; that logistics layer is the remaining M5 work.
+- Flooding and oxygen are not simulated yet (they arrive with the hazards pass).
+- The Steam Drill's canister refill at a boiler is not wired: the drill currently mines as if
+  charged.
 
 ## M4 — Machines, research and Era 1 (done)
 

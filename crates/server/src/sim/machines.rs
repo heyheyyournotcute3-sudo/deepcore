@@ -50,6 +50,7 @@ pub fn tick_machines(
     time: Res<Time>,
     registry: Res<deepcore_shared::content::ContentRegistry>,
     mut tech: ResMut<SharedTech>,
+    power: Res<crate::sim::power::ServerPower>,
     mut machines: Query<&mut BlockEntity>,
 ) {
     let unlocked = tech.state.available_recipes(&registry);
@@ -68,9 +69,12 @@ pub fn tick_machines(
             let _ = &mut tech_changed;
         }
 
-        match entity.state.check(&registry, &unlocked, 1.0) {
+        // Brownouts: an electric machine runs at the fraction of its demand the network can
+        // supply, which is the brief's "every consumer runs at supply / demand speed".
+        let satisfaction = crate::sim::power::power_for(&power, &entity, &registry);
+        match entity.state.check(&registry, &unlocked, satisfaction) {
             ProcessCheck::Ready => {
-                entity.state.advance(&registry, dt, 1.0);
+                entity.state.advance(&registry, dt, satisfaction);
             }
             ProcessCheck::Idle(_) => {
                 entity.state.running = false;

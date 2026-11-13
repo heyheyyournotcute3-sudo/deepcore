@@ -41,6 +41,7 @@ fn main() {
     app.insert_resource(options.clone());
     app.init_resource::<ClientSessions>();
     app.init_resource::<net::PendingHandshakes>();
+    app.init_resource::<sim::power::ServerPower>();
     app.init_resource::<world::chunks::GenerationQueue>();
     app.insert_resource(VoxelWorld::new());
 
@@ -70,6 +71,8 @@ fn main() {
             sim::players::announce_join,
             world::chunks::generate_chunks,
             world::chunks::unload_distant_chunks,
+            sim::power::rebuild_power_networks,
+            sim::power::tick_power,
             sim::machines::tick_machines,
             sim::placement::burn_fuel,
             sim::placement::sync_player_view,

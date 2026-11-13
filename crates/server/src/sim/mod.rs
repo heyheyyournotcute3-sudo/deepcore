@@ -6,3 +6,4 @@ pub mod items;
 pub mod machines;
 pub mod placement;
 pub mod players;
+pub mod power;

@@ -39,6 +39,7 @@ pub fn place_machine(
     mut changes: MessageWriter<BlockChanged>,
     mut notices: MessageWriter<ToClients<Notice>>,
     sessions: Res<ClientSessions>,
+    mut power: ResMut<crate::sim::power::ServerPower>,
 ) {
     for request in requests.read() {
         let Some((mut inventory, _, view)) =
@@ -107,6 +108,8 @@ pub fn place_machine(
         );
         debug!("placed machine {machine_id:?} at {:?} as entity {entity}", request.origin);
         inventory.dirty = true;
+        // The machine joins (or starts) a network, so the topology changed.
+        power.needs_rebuild = true;
     }
 }
 

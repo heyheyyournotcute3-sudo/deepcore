@@ -237,6 +237,7 @@ pub fn advance_mining(
     registry: Res<ContentRegistry>,
     mut changes: MessageWriter<BlockChanged>,
     mut pickups: MessageWriter<crate::sim::inventory::SpawnPickup>,
+    mut power: ResMut<crate::sim::power::ServerPower>,
 ) {
     for (entity, mut player, _owner) in &mut players {
         let Some(job) = player.mining else {
@@ -289,6 +290,8 @@ pub fn advance_mining(
                 );
                 commands.entity(machine_entity).despawn();
             }
+            // Pipes, cables and machine blocks change the network topology.
+            power.needs_rebuild = true;
             if world.set_block(pos, deepcore_shared::voxel::AIR) {
                 changes.write(BlockChanged {
                     position: pack_pos(pos),
