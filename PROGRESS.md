@@ -37,11 +37,47 @@ VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json cargo run -p deepco
 | M3 Content, inventory, crafting (Era 0) | **done** |
 | M4 Machines, research, Era 1 | **done** |
 | M5 Era 2: steam + logistics | **done**
-| M6 Era 3: electricity | not started |
-| M7 Era 4: chemistry + deep metallurgy | not started |
-| M8 Era 5: nuclear | not started |
+| M6 Era 3: electricity | **done (simulation)** |
+| M7 Era 4: chemistry + deep metallurgy | **done (simulation)** |
+| M8 Era 5: nuclear | **done (simulation + test)** |
 | M9 Persistence and polish | not started |
 | M10 Lobby, accounts, server browser | not started |
+
+## M6–M8 — Electricity, chemistry, nuclear (simulation complete)
+
+**Built**
+- `shared::hazards`: vitals (health, stamina, oxygen, body heat, radiation dose) with the
+  brief's thresholds — grain at 100, no regen at 300, damage at 600 — plus oxygen drain from
+  water and gas, heat damage above 45 C, radiation accumulation with gear resistance, the Decon
+  Shower, ambient radiation from *exposed* uranium only (buried ore is safe, which is what makes
+  the Geiger counter meaningful), decaying meltdown zones, and Geiger click rate. 13 tests.
+- `shared::nuclear`: centrifuge cascade scaling (4..16, faster the longer it is), the reactor
+  state machine (idle/running/warning/scrammed/meltdown) with rod withdrawal, coolant flow, a
+  scram panel that prevents a meltdown and a meltdown without one, reactor reset, ~20x-a-generator
+  output, core cells with a 2000-break budget, and the 5x5x5 shell layout (98 casing blocks).
+  12 tests.
+- `crates/shared/tests/progression_nuclear.rs`: **the M8 acceptance test** — drives raw uranium
+  through crusher, leaching tank, precipitator, conversion plant, centrifuge, fuel fabricator,
+  assembles a Nuclear Drill (tier 5, 3x3, 12x speed, reaches the Mantle Edge), makes control
+  rods from cadmium and stainless, runs a cooled reactor for ten simulated minutes without a
+  meltdown or a scram, and checks the waste path (depleted canisters into shielding, spent fuel
+  into the cooling pool). Plus tests that every nuclear machine is research-gated in chain
+  order and that uranium only generates in the two deepest layers. 3 tests.
+
+**Balance note**
+The reactor was initially tuned so hot that no stable operating point existed; `heat_rate` and
+`cooling_rate` were rebalanced (22 / 45) so a reactor at 70% rods and 90% coolant sits well
+below the warning line, while full rods with no coolant still melts down. This is exactly the
+kind of thing the balance pass is for.
+
+**Deferred (M6–M8 client/server integration)**
+- The hazard, power, reactor and cascade systems are complete and tested in `shared`, but they
+  are not yet driven per-player on the server: vitals are not ticked against the world, the
+  reactor is not a placed multi-block, and the cascade is not discovered from placed centrifuges.
+  Wiring those into the server simulation is the remaining work for these milestones.
+- Ore Scanner, Vent Fan, Electric Pump and the Decon Shower are defined and craftable but have
+  no world effect yet.
+- Upgrade modules exist in `MachineState` but there is no UI to install them.
 
 ## M5 — Era 2: steam, ore processing (done)
 
